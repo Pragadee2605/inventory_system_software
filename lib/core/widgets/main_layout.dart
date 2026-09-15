@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:inventory_system_software/core/services/authorization_service.dart';
 import 'package:inventory_system_software/features/auth/presentation/providers/auth_provider.dart';
 
 final sidebarCollapsedProvider = StateProvider<bool>((ref) => false);
@@ -52,6 +53,10 @@ class Sidebar extends ConsumerWidget {
     final isCollapsed = ref.watch(sidebarCollapsedProvider);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final user = ref.watch(authStateProvider).value;
+    final authService = ref.watch(authorizationServiceProvider);
+
+    bool canAccess(String route) => authService.canAccessRoute(user, route);
 
     return Container(
       color: isDark ? const Color(0xFF0F172A) : Colors.white,
@@ -67,170 +72,198 @@ class Sidebar extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildSectionHeader(context, 'OVERVIEW', isCollapsed),
-                  _buildNavItem(
-                    context: context,
-                    route: '/',
-                    currentPath: location,
-                    icon: Icons.grid_view_outlined,
-                    activeIcon: Icons.grid_view_rounded,
-                    label: 'Dashboard',
-                    isCollapsed: isCollapsed,
-                  ),
-                  const SizedBox(height: 12),
-                  _buildSectionHeader(context, 'INVENTORY & CATALOG', isCollapsed),
-                  _buildNavItem(
-                    context: context,
-                    route: '/products',
-                    currentPath: location,
-                    icon: Icons.inventory_2_outlined,
-                    activeIcon: Icons.inventory_2_rounded,
-                    label: 'Products',
-                    isCollapsed: isCollapsed,
-                  ),
-                  _buildNavItem(
-                    context: context,
-                    route: '/inventory',
-                    currentPath: location,
-                    icon: Icons.warehouse_outlined,
-                    activeIcon: Icons.warehouse_rounded,
-                    label: 'Inventory',
-                    isCollapsed: isCollapsed,
-                  ),
-                  _buildNavItem(
-                    context: context,
-                    route: '/locations',
-                    currentPath: location,
-                    icon: Icons.location_on_outlined,
-                    activeIcon: Icons.location_on_rounded,
-                    label: 'Locations',
-                    isCollapsed: isCollapsed,
-                  ),
-                  _buildNavItem(
-                    context: context,
-                    route: '/transfers',
-                    currentPath: location,
-                    icon: Icons.swap_horiz_outlined,
-                    activeIcon: Icons.swap_horiz_rounded,
-                    label: 'Stock Transfers',
-                    isCollapsed: isCollapsed,
-                  ),
-                  _buildNavItem(
-                    context: context,
-                    route: '/expiry',
-                    currentPath: location,
-                    icon: Icons.event_busy_outlined,
-                    activeIcon: Icons.event_busy_rounded,
-                    label: 'Expiry Alerts',
-                    isCollapsed: isCollapsed,
-                  ),
-                  const SizedBox(height: 12),
-                  _buildSectionHeader(context, 'COMMERCE', isCollapsed),
-                  _buildNavItem(
-                    context: context,
-                    route: '/purchases',
-                    currentPath: location,
-                    icon: Icons.shopping_bag_outlined,
-                    activeIcon: Icons.shopping_bag_rounded,
-                    label: 'Purchases',
-                    isCollapsed: isCollapsed,
-                  ),
-                  _buildNavItem(
-                    context: context,
-                    route: '/sales',
-                    currentPath: location,
-                    icon: Icons.point_of_sale_outlined,
-                    activeIcon: Icons.point_of_sale_rounded,
-                    label: 'Sales',
-                    isCollapsed: isCollapsed,
-                  ),
-                  _buildNavItem(
-                    context: context,
-                    route: '/returns',
-                    currentPath: location,
-                    icon: Icons.assignment_return_outlined,
-                    activeIcon: Icons.assignment_return_rounded,
-                    label: 'Returns',
-                    isCollapsed: isCollapsed,
-                  ),
-                  const SizedBox(height: 12),
-                  _buildSectionHeader(context, 'ANALYTICS & AUDIT', isCollapsed),
-                  _buildNavItem(
-                    context: context,
-                    route: '/reports',
-                    currentPath: location,
-                    icon: Icons.bar_chart_outlined,
-                    activeIcon: Icons.bar_chart_rounded,
-                    label: 'Reports & Analytics',
-                    isCollapsed: isCollapsed,
-                  ),
-                  _buildNavItem(
-                    context: context,
-                    route: '/audit',
-                    currentPath: location,
-                    icon: Icons.history_toggle_off_outlined,
-                    activeIcon: Icons.history_toggle_off_rounded,
-                    label: 'Audit Logs',
-                    isCollapsed: isCollapsed,
-                  ),
-                  const SizedBox(height: 12),
-                  _buildSectionHeader(context, 'MASTER DATA', isCollapsed),
-                  _buildNavItem(
-                    context: context,
-                    route: '/categories',
-                    currentPath: location,
-                    icon: Icons.category_outlined,
-                    activeIcon: Icons.category_rounded,
-                    label: 'Categories',
-                    isCollapsed: isCollapsed,
-                  ),
-                  _buildNavItem(
-                    context: context,
-                    route: '/brands',
-                    currentPath: location,
-                    icon: Icons.branding_watermark_outlined,
-                    activeIcon: Icons.branding_watermark_rounded,
-                    label: 'Brands',
-                    isCollapsed: isCollapsed,
-                  ),
-                  _buildNavItem(
-                    context: context,
-                    route: '/suppliers',
-                    currentPath: location,
-                    icon: Icons.local_shipping_outlined,
-                    activeIcon: Icons.local_shipping_rounded,
-                    label: 'Suppliers',
-                    isCollapsed: isCollapsed,
-                  ),
-                  _buildNavItem(
-                    context: context,
-                    route: '/customers',
-                    currentPath: location,
-                    icon: Icons.people_outline_rounded,
-                    activeIcon: Icons.people_rounded,
-                    label: 'Customers',
-                    isCollapsed: isCollapsed,
-                  ),
-                  const SizedBox(height: 12),
-                  _buildSectionHeader(context, 'SYSTEM', isCollapsed),
-                  _buildNavItem(
-                    context: context,
-                    route: '/users',
-                    currentPath: location,
-                    icon: Icons.manage_accounts_outlined,
-                    activeIcon: Icons.manage_accounts_rounded,
-                    label: 'User Accounts',
-                    isCollapsed: isCollapsed,
-                  ),
-                  _buildNavItem(
-                    context: context,
-                    route: '/settings',
-                    currentPath: location,
-                    icon: Icons.settings_outlined,
-                    activeIcon: Icons.settings_rounded,
-                    label: 'Settings',
-                    isCollapsed: isCollapsed,
-                  ),
+                  if (canAccess('/')) ...[
+                    _buildSectionHeader(context, 'OVERVIEW', isCollapsed),
+                    _buildNavItem(
+                      context: context,
+                      route: '/',
+                      currentPath: location,
+                      icon: Icons.grid_view_outlined,
+                      activeIcon: Icons.grid_view_rounded,
+                      label: 'Dashboard',
+                      isCollapsed: isCollapsed,
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  if (canAccess('/products') || canAccess('/inventory') || canAccess('/transfers')) ...[
+                    _buildSectionHeader(context, 'INVENTORY & CATALOG', isCollapsed),
+                    if (canAccess('/products'))
+                      _buildNavItem(
+                        context: context,
+                        route: '/products',
+                        currentPath: location,
+                        icon: Icons.inventory_2_outlined,
+                        activeIcon: Icons.inventory_2_rounded,
+                        label: 'Products',
+                        isCollapsed: isCollapsed,
+                      ),
+                    if (canAccess('/inventory'))
+                      _buildNavItem(
+                        context: context,
+                        route: '/inventory',
+                        currentPath: location,
+                        icon: Icons.warehouse_outlined,
+                        activeIcon: Icons.warehouse_rounded,
+                        label: 'Inventory',
+                        isCollapsed: isCollapsed,
+                      ),
+                    if (canAccess('/inventory'))
+                      _buildNavItem(
+                        context: context,
+                        route: '/locations',
+                        currentPath: location,
+                        icon: Icons.location_on_outlined,
+                        activeIcon: Icons.location_on_rounded,
+                        label: 'Locations',
+                        isCollapsed: isCollapsed,
+                      ),
+                    if (canAccess('/transfers'))
+                      _buildNavItem(
+                        context: context,
+                        route: '/transfers',
+                        currentPath: location,
+                        icon: Icons.swap_horiz_outlined,
+                        activeIcon: Icons.swap_horiz_rounded,
+                        label: 'Stock Transfers',
+                        isCollapsed: isCollapsed,
+                      ),
+                    if (canAccess('/inventory'))
+                      _buildNavItem(
+                        context: context,
+                        route: '/expiry',
+                        currentPath: location,
+                        icon: Icons.event_busy_outlined,
+                        activeIcon: Icons.event_busy_rounded,
+                        label: 'Expiry Alerts',
+                        isCollapsed: isCollapsed,
+                      ),
+                    const SizedBox(height: 12),
+                  ],
+                  if (canAccess('/purchases') || canAccess('/sales') || canAccess('/returns')) ...[
+                    _buildSectionHeader(context, 'COMMERCE', isCollapsed),
+                    if (canAccess('/purchases'))
+                      _buildNavItem(
+                        context: context,
+                        route: '/purchases',
+                        currentPath: location,
+                        icon: Icons.shopping_bag_outlined,
+                        activeIcon: Icons.shopping_bag_rounded,
+                        label: 'Purchases',
+                        isCollapsed: isCollapsed,
+                      ),
+                    if (canAccess('/sales'))
+                      _buildNavItem(
+                        context: context,
+                        route: '/sales',
+                        currentPath: location,
+                        icon: Icons.point_of_sale_outlined,
+                        activeIcon: Icons.point_of_sale_rounded,
+                        label: 'Sales',
+                        isCollapsed: isCollapsed,
+                      ),
+                    if (canAccess('/returns'))
+                      _buildNavItem(
+                        context: context,
+                        route: '/returns',
+                        currentPath: location,
+                        icon: Icons.assignment_return_outlined,
+                        activeIcon: Icons.assignment_return_rounded,
+                        label: 'Returns',
+                        isCollapsed: isCollapsed,
+                      ),
+                    const SizedBox(height: 12),
+                  ],
+                  if (canAccess('/reports') || canAccess('/audit')) ...[
+                    _buildSectionHeader(context, 'ANALYTICS & AUDIT', isCollapsed),
+                    if (canAccess('/reports'))
+                      _buildNavItem(
+                        context: context,
+                        route: '/reports',
+                        currentPath: location,
+                        icon: Icons.bar_chart_outlined,
+                        activeIcon: Icons.bar_chart_rounded,
+                        label: 'Reports & Analytics',
+                        isCollapsed: isCollapsed,
+                      ),
+                    if (canAccess('/audit'))
+                      _buildNavItem(
+                        context: context,
+                        route: '/audit',
+                        currentPath: location,
+                        icon: Icons.history_toggle_off_outlined,
+                        activeIcon: Icons.history_toggle_off_rounded,
+                        label: 'Audit Logs',
+                        isCollapsed: isCollapsed,
+                      ),
+                    const SizedBox(height: 12),
+                  ],
+                  if (canAccess('/categories') || canAccess('/brands') || canAccess('/suppliers') || canAccess('/customers')) ...[
+                    _buildSectionHeader(context, 'MASTER DATA', isCollapsed),
+                    if (canAccess('/categories'))
+                      _buildNavItem(
+                        context: context,
+                        route: '/categories',
+                        currentPath: location,
+                        icon: Icons.category_outlined,
+                        activeIcon: Icons.category_rounded,
+                        label: 'Categories',
+                        isCollapsed: isCollapsed,
+                      ),
+                    if (canAccess('/brands'))
+                      _buildNavItem(
+                        context: context,
+                        route: '/brands',
+                        currentPath: location,
+                        icon: Icons.branding_watermark_outlined,
+                        activeIcon: Icons.branding_watermark_rounded,
+                        label: 'Brands',
+                        isCollapsed: isCollapsed,
+                      ),
+                    if (canAccess('/suppliers'))
+                      _buildNavItem(
+                        context: context,
+                        route: '/suppliers',
+                        currentPath: location,
+                        icon: Icons.local_shipping_outlined,
+                        activeIcon: Icons.local_shipping_rounded,
+                        label: 'Suppliers',
+                        isCollapsed: isCollapsed,
+                      ),
+                    if (canAccess('/customers'))
+                      _buildNavItem(
+                        context: context,
+                        route: '/customers',
+                        currentPath: location,
+                        icon: Icons.people_outline_rounded,
+                        activeIcon: Icons.people_rounded,
+                        label: 'Customers',
+                        isCollapsed: isCollapsed,
+                      ),
+                    const SizedBox(height: 12),
+                  ],
+                  if (canAccess('/users') || canAccess('/settings')) ...[
+                    _buildSectionHeader(context, 'SYSTEM', isCollapsed),
+                    if (canAccess('/users'))
+                      _buildNavItem(
+                        context: context,
+                        route: '/users',
+                        currentPath: location,
+                        icon: Icons.manage_accounts_outlined,
+                        activeIcon: Icons.manage_accounts_rounded,
+                        label: 'User Accounts',
+                        isCollapsed: isCollapsed,
+                      ),
+                    if (canAccess('/settings'))
+                      _buildNavItem(
+                        context: context,
+                        route: '/settings',
+                        currentPath: location,
+                        icon: Icons.settings_outlined,
+                        activeIcon: Icons.settings_rounded,
+                        label: 'Settings',
+                        isCollapsed: isCollapsed,
+                      ),
+                  ],
                 ],
               ),
             ),
@@ -473,9 +506,17 @@ class TopBar extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authStateProvider);
     final user = authState.value;
+    final authService = ref.watch(authorizationServiceProvider);
     final currentPath = GoRouterState.of(context).uri.path;
     final title = _getBreadcrumbTitle(currentPath);
     final category = _getBreadcrumbCategory(currentPath);
+
+    final canManageProducts = authService.hasPermission(user, 'PRODUCT_MANAGE');
+    final canManageTransfers = authService.hasPermission(user, 'TRANSFERS_MANAGE');
+    final canManagePurchases = authService.hasPermission(user, 'PURCHASE_MANAGE');
+    final canManageSales = authService.hasPermission(user, 'SALES_MANAGE');
+    final canManageUsers = authService.hasPermission(user, 'USER_MANAGE');
+    final canManageSettings = authService.hasPermission(user, 'SETTINGS_MANAGE');
 
     return Container(
       height: 64,
@@ -546,7 +587,7 @@ class TopBar extends ConsumerWidget {
                     color: Colors.transparent,
                     child: InkWell(
                       borderRadius: BorderRadius.circular(8),
-                      onTap: () => _showQuickSearchModal(context),
+                      onTap: () => _showQuickSearchModal(context, authService, user),
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 12),
                         child: Row(
@@ -591,83 +632,88 @@ class TopBar extends ConsumerWidget {
             ),
           ),
           const SizedBox(width: 16),
-          // Quick Action Dropdown Menu
-          PopupMenuButton<String>(
-            tooltip: 'Quick Actions',
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            offset: const Offset(0, 48),
-            onSelected: (route) => context.go(route),
-            itemBuilder: (context) => [
-              const PopupMenuItem(
-                enabled: false,
-                child: Text(
-                  'QUICK ACTIONS',
-                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF94A3B8)),
+          // Quick Action Dropdown Menu (Filtered by permissions)
+          if (canManageProducts || canManageTransfers || canManagePurchases || canManageSales)
+            PopupMenuButton<String>(
+              tooltip: 'Quick Actions',
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              offset: const Offset(0, 48),
+              onSelected: (route) => context.go(route),
+              itemBuilder: (context) => [
+                const PopupMenuItem(
+                  enabled: false,
+                  child: Text(
+                    'QUICK ACTIONS',
+                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF94A3B8)),
+                  ),
                 ),
-              ),
-              const PopupMenuItem(
-                value: '/products',
-                child: Row(
-                  children: [
-                    Icon(Icons.add_box_outlined, size: 18),
-                    SizedBox(width: 10),
-                    Text('New Product', style: TextStyle(fontSize: 13)),
-                  ],
-                ),
-              ),
-              const PopupMenuItem(
-                value: '/transfers',
-                child: Row(
-                  children: [
-                    Icon(Icons.swap_horiz, size: 18),
-                    SizedBox(width: 10),
-                    Text('Stock Transfer', style: TextStyle(fontSize: 13)),
-                  ],
-                ),
-              ),
-              const PopupMenuItem(
-                value: '/purchases',
-                child: Row(
-                  children: [
-                    Icon(Icons.shopping_bag_outlined, size: 18),
-                    SizedBox(width: 10),
-                    Text('Create Purchase', style: TextStyle(fontSize: 13)),
-                  ],
-                ),
-              ),
-              const PopupMenuItem(
-                value: '/sales',
-                child: Row(
-                  children: [
-                    Icon(Icons.point_of_sale, size: 18),
-                    SizedBox(width: 10),
-                    Text('Create Sale Order', style: TextStyle(fontSize: 13)),
-                  ],
-                ),
-              ),
-            ],
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primary,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: const Row(
-                children: [
-                  Icon(Icons.add_rounded, size: 18, color: Colors.white),
-                  SizedBox(width: 6),
-                  Text(
-                    'Quick Action',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
+                if (canManageProducts)
+                  const PopupMenuItem(
+                    value: '/products',
+                    child: Row(
+                      children: [
+                        Icon(Icons.add_box_outlined, size: 18),
+                        SizedBox(width: 10),
+                        Text('New Product', style: TextStyle(fontSize: 13)),
+                      ],
                     ),
                   ),
-                ],
+                if (canManageTransfers)
+                  const PopupMenuItem(
+                    value: '/transfers',
+                    child: Row(
+                      children: [
+                        Icon(Icons.swap_horiz, size: 18),
+                        SizedBox(width: 10),
+                        Text('Stock Transfer', style: TextStyle(fontSize: 13)),
+                      ],
+                    ),
+                  ),
+                if (canManagePurchases)
+                  const PopupMenuItem(
+                    value: '/purchases',
+                    child: Row(
+                      children: [
+                        Icon(Icons.shopping_bag_outlined, size: 18),
+                        SizedBox(width: 10),
+                        Text('Create Purchase', style: TextStyle(fontSize: 13)),
+                      ],
+                    ),
+                  ),
+                if (canManageSales)
+                  const PopupMenuItem(
+                    value: '/sales',
+                    child: Row(
+                      children: [
+                        Icon(Icons.point_of_sale, size: 18),
+                        SizedBox(width: 10),
+                        Text('Create Sale Order', style: TextStyle(fontSize: 13)),
+                      ],
+                    ),
+                  ),
+              ],
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.primary,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.add_rounded, size: 18, color: Colors.white),
+                    SizedBox(width: 6),
+                    Text(
+                      'Quick Action',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-          ),
           const SizedBox(width: 16),
           // Notifications Bell Button
           Stack(
@@ -732,7 +778,7 @@ class TopBar extends ConsumerWidget {
                       ),
                     ),
                     Text(
-                      user?.username != null ? '@${user!.username}' : 'Administrator',
+                      user?.username != null ? '@${user!.username}' : 'User',
                       style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
                     ),
                     const SizedBox(height: 6),
@@ -743,7 +789,7 @@ class TopBar extends ConsumerWidget {
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
-                        (user?.roleName ?? 'ADMIN').toUpperCase(),
+                        (user?.roleName ?? 'STAFF').toUpperCase(),
                         style: const TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.w700,
@@ -755,27 +801,29 @@ class TopBar extends ConsumerWidget {
                 ),
               ),
               const PopupMenuDivider(),
-              const PopupMenuItem(
-                value: 'users',
-                child: Row(
-                  children: [
-                    Icon(Icons.manage_accounts_outlined, size: 18),
-                    SizedBox(width: 10),
-                    Text('User Management', style: TextStyle(fontSize: 13)),
-                  ],
+              if (canManageUsers)
+                const PopupMenuItem(
+                  value: 'users',
+                  child: Row(
+                    children: [
+                      Icon(Icons.manage_accounts_outlined, size: 18),
+                      SizedBox(width: 10),
+                      Text('User Management', style: TextStyle(fontSize: 13)),
+                    ],
+                  ),
                 ),
-              ),
-              const PopupMenuItem(
-                value: 'settings',
-                child: Row(
-                  children: [
-                    Icon(Icons.settings_outlined, size: 18),
-                    SizedBox(width: 10),
-                    Text('System Settings', style: TextStyle(fontSize: 13)),
-                  ],
+              if (canManageSettings)
+                const PopupMenuItem(
+                  value: 'settings',
+                  child: Row(
+                    children: [
+                      Icon(Icons.settings_outlined, size: 18),
+                      SizedBox(width: 10),
+                      Text('System Settings', style: TextStyle(fontSize: 13)),
+                    ],
+                  ),
                 ),
-              ),
-              const PopupMenuDivider(),
+              if (canManageUsers || canManageSettings) const PopupMenuDivider(),
               const PopupMenuItem(
                 value: 'logout',
                 child: Row(
@@ -836,7 +884,7 @@ class TopBar extends ConsumerWidget {
                       ),
                     ),
                     Text(
-                      user?.roleName.toUpperCase() ?? 'ADMIN',
+                      user?.roleName.toUpperCase() ?? 'STAFF',
                       style: const TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.w500,
@@ -886,11 +934,12 @@ class TopBar extends ConsumerWidget {
       case '/customers': return 'Customers Directory';
       case '/users': return 'User Accounts';
       case '/settings': return 'System Settings';
+      case '/access-denied': return 'Access Denied';
       default: return 'Overview';
     }
   }
 
-  void _showQuickSearchModal(BuildContext context) {
+  void _showQuickSearchModal(BuildContext context, AuthorizationService authService, dynamic user) {
     showDialog(
       context: context,
       builder: (context) {
@@ -916,38 +965,42 @@ class TopBar extends ConsumerWidget {
                   style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF94A3B8)),
                 ),
                 const SizedBox(height: 8),
-                ListTile(
-                  leading: const Icon(Icons.grid_view),
-                  title: const Text('Dashboard'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    context.go('/');
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.inventory_2),
-                  title: const Text('Product Catalog'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    context.go('/products');
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.warehouse),
-                  title: const Text('Stock Inventory'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    context.go('/inventory');
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.manage_accounts),
-                  title: const Text('User Management'),
-                  onTap: () {
-                    Navigator.pop(context);
-                    context.go('/users');
-                  },
-                ),
+                if (authService.canAccessRoute(user, '/'))
+                  ListTile(
+                    leading: const Icon(Icons.grid_view),
+                    title: const Text('Dashboard'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      context.go('/');
+                    },
+                  ),
+                if (authService.canAccessRoute(user, '/products'))
+                  ListTile(
+                    leading: const Icon(Icons.inventory_2),
+                    title: const Text('Product Catalog'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      context.go('/products');
+                    },
+                  ),
+                if (authService.canAccessRoute(user, '/inventory'))
+                  ListTile(
+                    leading: const Icon(Icons.warehouse),
+                    title: const Text('Stock Inventory'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      context.go('/inventory');
+                    },
+                  ),
+                if (authService.canAccessRoute(user, '/users'))
+                  ListTile(
+                    leading: const Icon(Icons.manage_accounts),
+                    title: const Text('User Management'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      context.go('/users');
+                    },
+                  ),
               ],
             ),
           ),
