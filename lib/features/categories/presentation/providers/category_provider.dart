@@ -5,6 +5,9 @@ import 'package:inventory_system_software/core/database/database.dart' hide Cate
 import 'package:inventory_system_software/features/categories/data/repositories/sqlite_category_repository.dart';
 import 'package:inventory_system_software/features/categories/domain/models/category.dart';
 import 'package:inventory_system_software/features/categories/domain/repositories/category_repository.dart';
+import 'package:logging/logging.dart';
+
+final _logger = Logger('CategoryProvider');
 
 final categoryRepositoryProvider = Provider<CategoryRepository>((ref) {
   final db = ref.watch(databaseProvider);
@@ -16,10 +19,13 @@ final categoryListProvider = AsyncNotifierProvider<CategoryList, List<Category>>
 class CategoryList extends AsyncNotifier<List<Category>> {
   @override
   FutureOr<List<Category>> build() async {
-    return ref.watch(categoryRepositoryProvider).getAllCategories();
+    final data = await ref.watch(categoryRepositoryProvider).getAllCategories();
+    _logger.info('Loaded ${data.length} categories');
+    return data;
   }
 
   Future<void> addCategory(String name, String? description) async {
+    _logger.info('Adding category: $name');
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
       await ref.read(categoryRepositoryProvider).createCategory(name, description);
@@ -28,6 +34,7 @@ class CategoryList extends AsyncNotifier<List<Category>> {
   }
 
   Future<void> updateCategory(int id, String name, String? description) async {
+    _logger.info('Updating category id=$id name=$name');
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
       await ref.read(categoryRepositoryProvider).updateCategory(id, name, description);
@@ -36,6 +43,7 @@ class CategoryList extends AsyncNotifier<List<Category>> {
   }
 
   Future<void> deleteCategory(int id) async {
+    _logger.info('Deleting category id=$id');
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
       await ref.read(categoryRepositoryProvider).deleteCategory(id);

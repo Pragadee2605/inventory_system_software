@@ -7,6 +7,9 @@ import 'package:inventory_system_software/features/brands/presentation/providers
 import 'package:inventory_system_software/features/categories/domain/models/category.dart';
 import 'package:inventory_system_software/features/brands/domain/models/brand.dart';
 import 'package:inventory_system_software/core/widgets/permission_gate.dart';
+import 'package:logging/logging.dart';
+
+final _logger = Logger('ProductScreen');
 
 class ProductScreen extends ConsumerWidget {
   const ProductScreen({super.key});
@@ -110,126 +113,145 @@ class ProductScreen extends ConsumerWidget {
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setState) {
-            final List<Category> categories = ref.watch(categoryListProvider).value ?? [];
-            final List<Brand> brands = ref.watch(brandListProvider).value ?? [];
+          final categories = ref.watch(categoryListProvider).value ?? [];
+          final brands = ref.watch(brandListProvider).value ?? [];
 
-            return AlertDialog(
-              title: Text(product == null ? 'Add Product' : 'Edit Product'),
-              content: Form(
-                key: formKey,
-                child: SingleChildScrollView(
-                  child: SizedBox(
-                    width: 500,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: TextFormField(
-                                controller: skuController,
-                                decoration: const InputDecoration(labelText: 'SKU *'),
-                                validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-                              ),
+          final canSave = categories.isNotEmpty;
+          _logger.info('Loaded categories=${categories.length}, brands=${brands.length} for product form');
+
+          return AlertDialog(
+            title: Text(product == null ? 'Add Product' : 'Edit Product'),
+            content: Form(
+              key: formKey,
+              child: SingleChildScrollView(
+                child: SizedBox(
+                  width: 500,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (categories.isEmpty)
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          margin: const EdgeInsets.only(bottom: 12),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: const Text('No categories found. Add a category before creating products.'),
+                        ),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              controller: skuController,
+                              decoration: const InputDecoration(labelText: 'SKU *'),
+                              validator: (v) => v == null || v.isEmpty ? 'Required' : null,
                             ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: TextFormField(
-                                controller: barcodeController,
-                                decoration: const InputDecoration(labelText: 'Barcode'),
-                              ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: TextFormField(
+                              controller: barcodeController,
+                              decoration: const InputDecoration(labelText: 'Barcode'),
                             ),
-                          ],
+                          ),
+                        ],
                         ),
-                        TextFormField(
-                          controller: nameController,
-                          decoration: const InputDecoration(labelText: 'Product Name *'),
-                          validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-                        ),
-                        const SizedBox(height: 16),
-                        DropdownButtonFormField<int>(
-                          initialValue: selectedCategoryId,
-                          decoration: const InputDecoration(labelText: 'Category *'),
-                          items: categories.map((c) => DropdownMenuItem(value: c.id, child: Text(c.name))).toList(),
-                          onChanged: (v) => setState(() => selectedCategoryId = v),
-                          validator: (v) => v == null ? 'Required' : null,
-                        ),
-                        DropdownButtonFormField<int>(
-                          initialValue: selectedBrandId,
-                          decoration: const InputDecoration(labelText: 'Brand'),
-                          items: brands.map((b) => DropdownMenuItem(value: b.id, child: Text(b.name))).toList(),
-                          onChanged: (v) => setState(() => selectedBrandId = v),
-                        ),
-                        const SizedBox(height: 16),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: TextFormField(
-                                controller: purchasePriceController,
-                                decoration: const InputDecoration(labelText: 'Purchase Price'),
-                                keyboardType: TextInputType.number,
-                              ),
+                      TextFormField(
+                        controller: nameController,
+                        decoration: const InputDecoration(labelText: 'Product Name *'),
+                        validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+                      ),
+                      const SizedBox(height: 16),
+                      DropdownButtonFormField<int>(
+                        value: categories.any((c) => c.id == selectedCategoryId) ? selectedCategoryId : null,
+                        decoration: const InputDecoration(labelText: 'Category *'),
+                        items: categories.isEmpty
+                            ? const []
+                            : categories.map((c) => DropdownMenuItem(value: c.id, child: Text(c.name))).toList(),
+                        onChanged: canSave ? (v) => setState(() => selectedCategoryId = v) : null,
+                        validator: (v) => v == null ? 'Required' : null,
+                      ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<int>(
+                        value: brands.any((b) => b.id == selectedBrandId) ? selectedBrandId : null,
+                        decoration: const InputDecoration(labelText: 'Brand'),
+                        items: brands.map((b) => DropdownMenuItem(value: b.id, child: Text(b.name))).toList(),
+                        onChanged: (v) => setState(() => selectedBrandId = v),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              controller: purchasePriceController,
+                              decoration: const InputDecoration(labelText: 'Purchase Price'),
+                              keyboardType: TextInputType.number,
                             ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: TextFormField(
-                                controller: sellingPriceController,
-                                decoration: const InputDecoration(labelText: 'Selling Price'),
-                                keyboardType: TextInputType.number,
-                              ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: TextFormField(
+                              controller: sellingPriceController,
+                              decoration: const InputDecoration(labelText: 'Selling Price'),
+                              keyboardType: TextInputType.number,
                             ),
-                          ],
-                        ),
-                        TextFormField(
-                          controller: minStockController,
-                          decoration: const InputDecoration(labelText: 'Minimum Stock Level'),
-                          keyboardType: TextInputType.number,
-                        ),
-                      ],
-                    ),
+                          ),
+                        ],
+                      ),
+                      TextFormField(
+                        controller: minStockController,
+                        decoration: const InputDecoration(labelText: 'Minimum Stock Level'),
+                        keyboardType: TextInputType.number,
+                      ),
+                    ],
                   ),
                 ),
               ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancel'),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    if (formKey.currentState!.validate()) {
-                      if (product == null) {
-                        ref.read(productListProvider.notifier).addProduct(
-                              sku: skuController.text,
-                              barcode: barcodeController.text,
-                              name: nameController.text,
-                              categoryId: selectedCategoryId!,
-                              brandId: selectedBrandId,
-                              purchasePrice: double.tryParse(purchasePriceController.text) ?? 0.0,
-                              sellingPrice: double.tryParse(sellingPriceController.text) ?? 0.0,
-                              minStock: int.tryParse(minStockController.text) ?? 5,
-                            );
-                      } else {
-                        ref.read(productListProvider.notifier).updateProduct(
-                              id: product.id,
-                              sku: skuController.text,
-                              barcode: barcodeController.text,
-                              name: nameController.text,
-                              categoryId: selectedCategoryId!,
-                              brandId: selectedBrandId,
-                              purchasePrice: double.tryParse(purchasePriceController.text) ?? 0.0,
-                              sellingPrice: double.tryParse(sellingPriceController.text) ?? 0.0,
-                              minStock: int.tryParse(minStockController.text) ?? 5,
-                            );
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton(
+                onPressed: canSave
+                    ? () {
+                        if (formKey.currentState!.validate()) {
+                          _logger.info('Saving product: sku=${skuController.text}, categoryId=$selectedCategoryId');
+                          if (product == null) {
+                            ref.read(productListProvider.notifier).addProduct(
+                                  sku: skuController.text,
+                                  barcode: barcodeController.text,
+                                  name: nameController.text,
+                                  categoryId: selectedCategoryId!,
+                                  brandId: selectedBrandId,
+                                  purchasePrice: double.tryParse(purchasePriceController.text) ?? 0.0,
+                                  sellingPrice: double.tryParse(sellingPriceController.text) ?? 0.0,
+                                  minStock: int.tryParse(minStockController.text) ?? 5,
+                                );
+                          } else {
+                            ref.read(productListProvider.notifier).updateProduct(
+                                  id: product.id,
+                                  sku: skuController.text,
+                                  barcode: barcodeController.text,
+                                  name: nameController.text,
+                                  categoryId: selectedCategoryId!,
+                                  brandId: selectedBrandId,
+                                  purchasePrice: double.tryParse(purchasePriceController.text) ?? 0.0,
+                                  sellingPrice: double.tryParse(sellingPriceController.text) ?? 0.0,
+                                  minStock: int.tryParse(minStockController.text) ?? 5,
+                                );
+                          }
+                          Navigator.pop(context);
+                        }
                       }
-                      Navigator.pop(context);
-                    }
-                  },
-                  child: const Text('Save'),
-                ),
-              ],
-            );
-          },
+                    : null,
+                child: const Text('Save'),
+              ),
+            ],
+          );
+        },
         );
       },
     );

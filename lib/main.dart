@@ -7,11 +7,10 @@ import 'package:inventory_system_software/core/services/logging_service.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize Logging
   LoggingService.init();
 
-  // Initialize Database (Drift)
   final database = AppDatabase();
+  await database.ensureDefaultAdmin();
 
   runApp(
     ProviderScope(

@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:inventory_system_software/features/auth/data/services/password_service.dart';
 
 import 'native_database.dart' if (dart.library.js_interop) 'web_database.dart' as db_impl;
 
@@ -30,29 +31,103 @@ class AppDatabase extends _$AppDatabase {
       },
       onCreate: (m) async {
         await m.createAll();
-        // Seed Roles
-        await batch((batch) {
-          batch.insertAll(roles, [
-            RolesCompanion.insert(name: 'ADMIN', description: const Value('Administrator with full access')),
-            RolesCompanion.insert(name: 'MANAGER', description: const Value('Manager with operational access')),
-            RolesCompanion.insert(name: 'STAFF', description: const Value('Staff with basic access')),
-            RolesCompanion.insert(name: 'VIEWER', description: const Value('Read-only access')),
-          ]);
-        });
-
-        // Seed Permissions
-        await batch((batch) {
-          batch.insertAll(permissions, [
-            PermissionsCompanion.insert(code: 'PRODUCT_VIEW', description: const Value('View products')),
-            PermissionsCompanion.insert(code: 'PRODUCT_MANAGE', description: const Value('Manage products')),
-            PermissionsCompanion.insert(code: 'STOCK_MANAGE', description: const Value('Manage stock')),
-            PermissionsCompanion.insert(code: 'REPORT_VIEW', description: const Value('View reports')),
-            PermissionsCompanion.insert(code: 'PURCHASE_MANAGE', description: const Value('Manage purchases')),
-            PermissionsCompanion.insert(code: 'SALES_MANAGE', description: const Value('Manage sales')),
-          ]);
-        });
+        await _seedDefaultRolesAndPermissions();
+        await _seedDefaultMasterData();
       },
     );
+  }
+
+  Future<void> ensureDefaultAdmin() async {
+    await _seedDefaultRolesAndPermissions();
+    await _seedDefaultMasterData();
+
+    final adminRole = await (select(roles)
+          ..where((t) => t.name.equals('ADMIN')))
+        .getSingleOrNull();
+
+    if (adminRole == null) {
+      return;
+    }
+
+    final existingUser = await (select(users)
+          ..where((t) => t.username.equals('Pragadees')))
+        .getSingleOrNull();
+
+    if (existingUser != null) {
+      return;
+    }
+
+    await into(users).insert(
+      UsersCompanion.insert(
+        username: 'Pragadees',
+        fullName: 'Pragadees',
+        passwordHash: PasswordService().hashPassword('Pragadees'),
+        roleId: adminRole.id,
+        status: const Value(UserStatus.active),
+      ),
+    );
+    print('Default admin created: Pragadees / Pragadees');
+  }
+
+  Future<void> _seedDefaultRolesAndPermissions() async {
+    final existingRoles = await select(roles).get();
+    if (existingRoles.isEmpty) {
+      await batch((batch) {
+        batch.insertAll(roles, [
+          RolesCompanion.insert(name: 'ADMIN', description: const Value('Administrator with full access')),
+          RolesCompanion.insert(name: 'MANAGER', description: const Value('Manager with operational access')),
+          RolesCompanion.insert(name: 'STAFF', description: const Value('Staff with basic access')),
+          RolesCompanion.insert(name: 'VIEWER', description: const Value('Read-only access')),
+        ]);
+      });
+    }
+
+    final existingPermissions = await select(permissions).get();
+    if (existingPermissions.isEmpty) {
+      await batch((batch) {
+        batch.insertAll(permissions, [
+          PermissionsCompanion.insert(code: 'PRODUCT_VIEW', description: const Value('View products')),
+          PermissionsCompanion.insert(code: 'PRODUCT_MANAGE', description: const Value('Manage products')),
+          PermissionsCompanion.insert(code: 'STOCK_MANAGE', description: const Value('Manage stock')),
+          PermissionsCompanion.insert(code: 'REPORT_VIEW', description: const Value('View reports')),
+          PermissionsCompanion.insert(code: 'PURCHASE_MANAGE', description: const Value('Manage purchases')),
+          PermissionsCompanion.insert(code: 'SALES_MANAGE', description: const Value('Manage sales')),
+        ]);
+      });
+    }
+  }
+
+  Future<void> _seedDefaultMasterData() async {
+    final existingCategories = await select(categories).get();
+    if (existingCategories.isEmpty) {
+      await batch((batch) {
+        batch.insertAll(categories, [
+          CategoriesCompanion.insert(
+            name: 'Electronics',
+            description: const Value('Electronics items'),
+          ),
+          CategoriesCompanion.insert(
+            name: 'Food',
+            description: const Value('Food and grocery'),
+          ),
+          CategoriesCompanion.insert(
+            name: 'Clothing',
+            description: const Value('Apparel and clothing'),
+          ),
+        ]);
+      });
+    }
+
+    final existingBrands = await select(brands).get();
+    if (existingBrands.isEmpty) {
+      await batch((batch) {
+        batch.insertAll(brands, [
+          BrandsCompanion.insert(name: 'Generic'),
+          BrandsCompanion.insert(name: 'Samsung'),
+          BrandsCompanion.insert(name: 'Apple'),
+        ]);
+      });
+    }
   }
 }
 

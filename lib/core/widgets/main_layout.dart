@@ -38,6 +38,10 @@ class Sidebar extends StatelessWidget {
 
     return NavigationRail(
       extended: true,
+      minWidth: 180,
+      minExtendedWidth: 220,
+      labelType: NavigationRailLabelType.all,
+      groupAlignment: -0.8,
       destinations: const [
         NavigationRailDestination(
           icon: Icon(Icons.dashboard_outlined),

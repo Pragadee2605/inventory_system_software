@@ -9,6 +9,7 @@ DatabaseConnection openConnection() {
     final dbFolder = await getApplicationSupportDirectory();
     await dbFolder.create(recursive: true);
     final file = File(p.join(dbFolder.path, 'inventory.sqlite'));
+    print('SQLite DB path: ${file.path}');
     final executor = NativeDatabase.createInBackground(file);
     return DatabaseConnection(executor);
   }));

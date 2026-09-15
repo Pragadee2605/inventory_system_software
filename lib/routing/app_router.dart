@@ -19,6 +19,7 @@ import 'package:inventory_system_software/features/reports/presentation/reports_
 import 'package:inventory_system_software/features/audit/presentation/audit_screen.dart';
 import 'package:inventory_system_software/features/auth/presentation/login_screen.dart';
 import 'package:inventory_system_software/features/auth/presentation/setup_screen.dart';
+import 'package:inventory_system_software/features/auth/presentation/splash_screen.dart';
 import 'package:inventory_system_software/features/auth/presentation/providers/auth_provider.dart';
 import 'package:inventory_system_software/core/widgets/main_layout.dart';
 
@@ -35,9 +36,12 @@ final routerProvider = Provider<GoRouter>((ref) {
   final notifier = RouterNotifier(ref);
 
   return GoRouter(
-    initialLocation: '/',
+    initialLocation: '/splash',
     refreshListenable: notifier,
     redirect: (context, state) {
+      final isSplash = state.matchedLocation == '/splash';
+      if (isSplash) return null;
+
       final hasUsersAsync = ref.read(hasUsersProvider);
       if (hasUsersAsync.isLoading || hasUsersAsync.hasError) return null;
 
@@ -64,6 +68,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
+      GoRoute(path: '/splash', builder: (context, state) => const SplashScreen()),
       GoRoute(path: '/setup', builder: (context, state) => const SetupScreen()),
       GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
       ShellRoute(
