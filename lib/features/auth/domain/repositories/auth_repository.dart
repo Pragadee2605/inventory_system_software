@@ -1,3 +1,4 @@
+import 'package:inventory_system_software/core/database/database.dart';
 import 'package:inventory_system_software/features/auth/domain/models/auth_user.dart';
 
 abstract class AuthRepository {
@@ -10,4 +11,24 @@ abstract class AuthRepository {
     required String password,
     required String fullName,
   });
+
+  // User Management Methods
+  Future<List<AuthUser>> getAllUsers();
+  Future<int> createUser({
+    required String username,
+    required String fullName,
+    required String password,
+    required String roleName,
+    String? email,
+    String? phone,
+  });
+  Future<void> updateUser({
+    required int id,
+    required String fullName,
+    required String roleName,
+    String? email,
+    String? phone,
+  });
+  Future<void> setUserStatus(int id, UserStatus status);
+  Future<void> changePassword(int id, String newPassword);
 }

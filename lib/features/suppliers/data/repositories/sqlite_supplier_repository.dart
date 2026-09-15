@@ -37,30 +37,47 @@ class SqliteSupplierRepository implements SupplierRepository {
 
   @override
   Future<int> createSupplier({required String name, String? email, String? phone, String? address}) async {
+    final cleanName = name.trim();
+    if (cleanName.isEmpty) throw Exception('Supplier name is required.');
+
     return await _db.into(_db.suppliers).insert(
       SuppliersCompanion.insert(
-        name: name,
-        email: Value(email),
-        phone: Value(phone),
-        address: Value(address),
+        name: cleanName,
+        email: Value(email?.trim()),
+        phone: Value(phone?.trim()),
+        address: Value(address?.trim()),
       ),
     );
   }
 
   @override
   Future<void> updateSupplier({required int id, required String name, String? email, String? phone, String? address}) async {
+    final cleanName = name.trim();
+    if (cleanName.isEmpty) throw Exception('Supplier name is required.');
+
     await (_db.update(_db.suppliers)..where((t) => t.id.equals(id))).write(
       SuppliersCompanion(
-        name: Value(name),
-        email: Value(email),
-        phone: Value(phone),
-        address: Value(address),
+        name: Value(cleanName),
+        email: Value(email?.trim()),
+        phone: Value(phone?.trim()),
+        address: Value(address?.trim()),
       ),
     );
   }
 
   @override
   Future<void> deleteSupplier(int id) async {
+    // Check if supplier is referenced in purchase orders
+    final countExp = _db.purchaseOrders.id.count();
+    final query = _db.selectOnly(_db.purchaseOrders)
+      ..addColumns([countExp])
+      ..where(_db.purchaseOrders.supplierId.equals(id));
+    
+    final count = await query.map((row) => row.read(countExp)).getSingle();
+    if ((count ?? 0) > 0) {
+      throw Exception('Cannot delete supplier: referenced in $count purchase order(s).');
+    }
+
     await (_db.delete(_db.suppliers)..where((t) => t.id.equals(id))).go();
   }
 }

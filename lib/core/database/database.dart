@@ -60,7 +60,7 @@ class AppDatabase extends _$AppDatabase {
     await into(users).insert(
       UsersCompanion.insert(
         username: 'Pragadees',
-        fullName: 'Pragadees',
+        fullName: 'Pragadees Admin',
         passwordHash: PasswordService().hashPassword('Pragadees'),
         roleId: adminRole.id,
         status: const Value(UserStatus.active),
@@ -74,26 +74,113 @@ class AppDatabase extends _$AppDatabase {
     if (existingRoles.isEmpty) {
       await batch((batch) {
         batch.insertAll(roles, [
-          RolesCompanion.insert(name: 'ADMIN', description: const Value('Administrator with full access')),
-          RolesCompanion.insert(name: 'MANAGER', description: const Value('Manager with operational access')),
-          RolesCompanion.insert(name: 'STAFF', description: const Value('Staff with basic access')),
-          RolesCompanion.insert(name: 'VIEWER', description: const Value('Read-only access')),
+          RolesCompanion.insert(name: 'ADMIN', description: const Value('Administrator with full system access')),
+          RolesCompanion.insert(name: 'MANAGER', description: const Value('Manager with operational and reporting access')),
+          RolesCompanion.insert(name: 'STAFF', description: const Value('Staff with basic inventory and sales access')),
+          RolesCompanion.insert(name: 'VIEWER', description: const Value('Read-only view access')),
         ]);
       });
     }
 
+    final allRolesMap = {
+      for (final r in await select(roles).get()) r.name: r.id
+    };
+
     final existingPermissions = await select(permissions).get();
+    final permissionsList = [
+      'DASHBOARD_VIEW',
+      'PRODUCT_VIEW',
+      'PRODUCT_MANAGE',
+      'CATEGORY_MANAGE',
+      'BRAND_MANAGE',
+      'SUPPLIER_MANAGE',
+      'CUSTOMER_MANAGE',
+      'INVENTORY_VIEW',
+      'STOCK_MANAGE',
+      'TRANSFERS_MANAGE',
+      'PURCHASE_VIEW',
+      'PURCHASE_MANAGE',
+      'SALES_VIEW',
+      'SALES_MANAGE',
+      'RETURNS_MANAGE',
+      'REPORT_VIEW',
+      'REPORT_EXPORT',
+      'AUDIT_VIEW',
+      'USER_MANAGE',
+      'SETTINGS_MANAGE',
+    ];
+
     if (existingPermissions.isEmpty) {
       await batch((batch) {
-        batch.insertAll(permissions, [
-          PermissionsCompanion.insert(code: 'PRODUCT_VIEW', description: const Value('View products')),
-          PermissionsCompanion.insert(code: 'PRODUCT_MANAGE', description: const Value('Manage products')),
-          PermissionsCompanion.insert(code: 'STOCK_MANAGE', description: const Value('Manage stock')),
-          PermissionsCompanion.insert(code: 'REPORT_VIEW', description: const Value('View reports')),
-          PermissionsCompanion.insert(code: 'PURCHASE_MANAGE', description: const Value('Manage purchases')),
-          PermissionsCompanion.insert(code: 'SALES_MANAGE', description: const Value('Manage sales')),
-        ]);
+        batch.insertAll(
+          permissions,
+          permissionsList.map((code) => PermissionsCompanion.insert(code: code, description: Value('Permission for $code'))).toList(),
+        );
       });
+    }
+
+    final existingRolePerms = await select(rolePermissions).get();
+    if (existingRolePerms.isEmpty) {
+      final rolePermsToInsert = <RolePermissionsCompanion>[];
+
+      // ADMIN gets all permissions
+      final adminRoleId = allRolesMap['ADMIN'];
+      if (adminRoleId != null) {
+        for (final p in permissionsList) {
+          rolePermsToInsert.add(RolePermissionsCompanion.insert(roleId: adminRoleId, permissionCode: p));
+        }
+      }
+
+      // MANAGER gets all operational + reporting permissions (except USER_MANAGE and SETTINGS_MANAGE)
+      final managerRoleId = allRolesMap['MANAGER'];
+      if (managerRoleId != null) {
+        final managerPerms = permissionsList.where((p) => p != 'USER_MANAGE' && p != 'SETTINGS_MANAGE');
+        for (final p in managerPerms) {
+          rolePermsToInsert.add(RolePermissionsCompanion.insert(roleId: managerRoleId, permissionCode: p));
+        }
+      }
+
+      // STAFF gets basic view + stock + sales + purchases + transfers + reports
+      final staffRoleId = allRolesMap['STAFF'];
+      if (staffRoleId != null) {
+        final staffPerms = [
+          'DASHBOARD_VIEW',
+          'PRODUCT_VIEW',
+          'INVENTORY_VIEW',
+          'STOCK_MANAGE',
+          'TRANSFERS_MANAGE',
+          'PURCHASE_VIEW',
+          'SALES_VIEW',
+          'SALES_MANAGE',
+          'RETURNS_MANAGE',
+          'REPORT_VIEW',
+        ];
+        for (final p in staffPerms) {
+          rolePermsToInsert.add(RolePermissionsCompanion.insert(roleId: staffRoleId, permissionCode: p));
+        }
+      }
+
+      // VIEWER gets read-only access
+      final viewerRoleId = allRolesMap['VIEWER'];
+      if (viewerRoleId != null) {
+        final viewerPerms = [
+          'DASHBOARD_VIEW',
+          'PRODUCT_VIEW',
+          'INVENTORY_VIEW',
+          'PURCHASE_VIEW',
+          'SALES_VIEW',
+          'REPORT_VIEW',
+        ];
+        for (final p in viewerPerms) {
+          rolePermsToInsert.add(RolePermissionsCompanion.insert(roleId: viewerRoleId, permissionCode: p));
+        }
+      }
+
+      if (rolePermsToInsert.isNotEmpty) {
+        await batch((batch) {
+          batch.insertAll(rolePermissions, rolePermsToInsert);
+        });
+      }
     }
   }
 

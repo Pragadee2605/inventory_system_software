@@ -215,6 +215,15 @@ class Sidebar extends ConsumerWidget {
                   _buildSectionHeader(context, 'SYSTEM', isCollapsed),
                   _buildNavItem(
                     context: context,
+                    route: '/users',
+                    currentPath: location,
+                    icon: Icons.manage_accounts_outlined,
+                    activeIcon: Icons.manage_accounts_rounded,
+                    label: 'User Accounts',
+                    isCollapsed: isCollapsed,
+                  ),
+                  _buildNavItem(
+                    context: context,
                     route: '/settings',
                     currentPath: location,
                     icon: Icons.settings_outlined,
@@ -698,7 +707,9 @@ class TopBar extends ConsumerWidget {
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             offset: const Offset(0, 52),
             onSelected: (value) async {
-              if (value == 'settings') {
+              if (value == 'users') {
+                context.go('/users');
+              } else if (value == 'settings') {
                 context.go('/settings');
               } else if (value == 'logout') {
                 _confirmLogout(context, ref);
@@ -744,6 +755,16 @@ class TopBar extends ConsumerWidget {
                 ),
               ),
               const PopupMenuDivider(),
+              const PopupMenuItem(
+                value: 'users',
+                child: Row(
+                  children: [
+                    Icon(Icons.manage_accounts_outlined, size: 18),
+                    SizedBox(width: 10),
+                    Text('User Management', style: TextStyle(fontSize: 13)),
+                  ],
+                ),
+              ),
               const PopupMenuItem(
                 value: 'settings',
                 child: Row(
@@ -842,7 +863,7 @@ class TopBar extends ConsumerWidget {
     if (['/purchases', '/sales', '/returns'].contains(path)) return 'Commerce';
     if (['/reports', '/audit'].contains(path)) return 'Analytics';
     if (['/categories', '/brands', '/suppliers', '/customers'].contains(path)) return 'Master Data';
-    if (path == '/settings') return 'Configuration';
+    if (['/users', '/settings'].contains(path)) return 'Configuration';
     return 'System';
   }
 
@@ -863,6 +884,7 @@ class TopBar extends ConsumerWidget {
       case '/brands': return 'Product Brands';
       case '/suppliers': return 'Suppliers Directory';
       case '/customers': return 'Customers Directory';
+      case '/users': return 'User Accounts';
       case '/settings': return 'System Settings';
       default: return 'Overview';
     }
@@ -919,11 +941,11 @@ class TopBar extends ConsumerWidget {
                   },
                 ),
                 ListTile(
-                  leading: const Icon(Icons.bar_chart),
-                  title: const Text('Reports & Analytics'),
+                  leading: const Icon(Icons.manage_accounts),
+                  title: const Text('User Management'),
                   onTap: () {
                     Navigator.pop(context);
-                    context.go('/reports');
+                    context.go('/users');
                   },
                 ),
               ],

@@ -25,6 +25,10 @@ class SqliteReturnRepository {
     required int userId,
     String? reason,
   }) async {
+    if (items.isEmpty) {
+      throw Exception('Cannot process return with zero items.');
+    }
+
     return await _db.transaction(() async {
       final returnId = await _db.into(_db.returns).insert(
         ReturnsCompanion.insert(
@@ -36,6 +40,10 @@ class SqliteReturnRepository {
       );
 
       for (final item in items) {
+        if (item.quantity <= 0) {
+          throw Exception('Return quantity must be greater than zero.');
+        }
+
         await _db.into(_db.returnItems).insert(
           ReturnItemsCompanion.insert(
             returnId: returnId,
@@ -50,6 +58,10 @@ class SqliteReturnRepository {
         
         // If SALE return, stock IN. If PURCHASE return, stock OUT.
         int nextStock = type == 'SALE' ? prevStock + item.quantity : prevStock - item.quantity;
+        if (nextStock < 0) {
+          throw Exception('Insufficient stock to process purchase return for product "${product.name}". Available: $prevStock, Requested return: ${item.quantity}');
+        }
+
         String txType = type == 'SALE' ? 'RETURN_IN' : 'RETURN_OUT';
 
         await (_db.update(_db.products)..where((t) => t.id.equals(item.productId))).write(
@@ -68,6 +80,15 @@ class SqliteReturnRepository {
           ),
         );
       }
+
+      await _db.into(_db.auditLogs).insert(
+        AuditLogsCompanion.insert(
+          userId: userId,
+          action: 'CREATE_RETURN',
+          details: Value('Created $type Return #$returnId for Reference ID $referenceId'),
+        ),
+      );
+
       return returnId;
     });
   }

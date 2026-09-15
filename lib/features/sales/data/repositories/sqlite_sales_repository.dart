@@ -77,7 +77,28 @@ class SqliteSalesRepository implements SalesRepository {
     required List<SalesItemDraft> items,
     required int userId,
   }) async {
+    if (items.isEmpty) {
+      throw Exception('Cannot create sale order without items.');
+    }
+
     return await _db.transaction(() async {
+      // 1. Stock Validation for ALL items prior to processing
+      for (final item in items) {
+        final product = await (_db.select(_db.products)..where((t) => t.id.equals(item.productId))).getSingleOrNull();
+        if (product == null) {
+          throw Exception('Product ID ${item.productId} not found.');
+        }
+
+        if (item.quantity <= 0) {
+          throw Exception('Sale quantity for product "${product.name}" must be greater than zero.');
+        }
+
+        if (product.currentStock < item.quantity) {
+          throw Exception('Insufficient stock for product "${product.name}". Available: ${product.currentStock}, Requested: ${item.quantity}.');
+        }
+      }
+
+      // 2. Create Sale Order Record
       final invoiceNumber = 'INV-${DateTime.now().millisecondsSinceEpoch}';
       double total = items.fold(0, (sum, item) => sum + (item.quantity * item.unitPrice));
 
@@ -91,6 +112,7 @@ class SqliteSalesRepository implements SalesRepository {
         ),
       );
 
+      // 3. Process items and deduct stock
       for (final item in items) {
         await _db.into(_db.salesItems).insert(
           SalesItemsCompanion.insert(
@@ -102,7 +124,6 @@ class SqliteSalesRepository implements SalesRepository {
           ),
         );
 
-        // Update Stock
         final product = await (_db.select(_db.products)..where((t) => t.id.equals(item.productId))).getSingle();
         final prevStock = product.currentStock;
         final nextStock = prevStock - item.quantity;
@@ -124,6 +145,16 @@ class SqliteSalesRepository implements SalesRepository {
           ),
         );
       }
+
+      // 4. Audit Log entry
+      await _db.into(_db.auditLogs).insert(
+        AuditLogsCompanion.insert(
+          userId: userId,
+          action: 'CREATE_SALE',
+          details: Value('Created sale order $invoiceNumber (Total: \$${total.toStringAsFixed(2)})'),
+        ),
+      );
+
       return orderId;
     });
   }

@@ -4,8 +4,6 @@ import 'package:inventory_system_software/features/products/presentation/provide
 import 'package:inventory_system_software/features/products/domain/models/product.dart';
 import 'package:inventory_system_software/features/categories/presentation/providers/category_provider.dart';
 import 'package:inventory_system_software/features/brands/presentation/providers/brand_provider.dart';
-import 'package:inventory_system_software/features/categories/domain/models/category.dart';
-import 'package:inventory_system_software/features/brands/domain/models/brand.dart';
 import 'package:inventory_system_software/core/widgets/permission_gate.dart';
 import 'package:logging/logging.dart';
 

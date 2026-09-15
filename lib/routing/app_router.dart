@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:inventory_system_software/core/services/authorization_service.dart';
+import 'package:inventory_system_software/core/widgets/access_denied_screen.dart';
 import 'package:inventory_system_software/features/dashboard/presentation/dashboard_screen.dart';
 import 'package:inventory_system_software/features/settings/presentation/settings_screen.dart';
 import 'package:inventory_system_software/features/categories/presentation/category_screen.dart';
@@ -17,6 +19,7 @@ import 'package:inventory_system_software/features/sales/presentation/sales_scre
 import 'package:inventory_system_software/features/returns/presentation/returns_screen.dart';
 import 'package:inventory_system_software/features/reports/presentation/reports_screen.dart';
 import 'package:inventory_system_software/features/audit/presentation/audit_screen.dart';
+import 'package:inventory_system_software/features/users/presentation/users_screen.dart';
 import 'package:inventory_system_software/features/auth/presentation/login_screen.dart';
 import 'package:inventory_system_software/features/auth/presentation/setup_screen.dart';
 import 'package:inventory_system_software/features/auth/presentation/splash_screen.dart';
@@ -34,6 +37,7 @@ class RouterNotifier extends ChangeNotifier {
 
 final routerProvider = Provider<GoRouter>((ref) {
   final notifier = RouterNotifier(ref);
+  final authService = ref.read(authorizationServiceProvider);
 
   return GoRouter(
     initialLocation: '/splash',
@@ -49,9 +53,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       final authState = ref.read(authStateProvider);
       if (authState.isLoading || authState.hasError) return null;
 
-      final isLoggedIn = authState.value != null;
+      final user = authState.value;
+      final isLoggedIn = user != null;
       final isGoingToSetup = state.matchedLocation == '/setup';
       final isGoingToLogin = state.matchedLocation == '/login';
+      final isAccessDenied = state.matchedLocation == '/access-denied';
 
       if (!hasUsers) {
         if (!isGoingToSetup) return '/setup';
@@ -65,6 +71,15 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       if (isGoingToLogin || isGoingToSetup) return '/';
 
+      if (isAccessDenied) return null;
+
+      // Route Authorization Guard Check
+      final path = state.matchedLocation;
+      final canAccess = authService.canAccessRoute(user, path);
+      if (!canAccess) {
+        return '/access-denied';
+      }
+
       return null;
     },
     routes: [
@@ -75,6 +90,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state, child) => MainLayout(child: child),
         routes: [
           GoRoute(path: '/', builder: (context, state) => const DashboardScreen()),
+          GoRoute(path: '/access-denied', builder: (context, state) => const AccessDeniedScreen()),
           GoRoute(path: '/products', builder: (context, state) => const ProductScreen()),
           GoRoute(path: '/inventory', builder: (context, state) => const InventoryScreen()),
           GoRoute(path: '/locations', builder: (context, state) => const LocationsScreen()),
@@ -85,6 +101,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/returns', builder: (context, state) => const ReturnsScreen()),
           GoRoute(path: '/reports', builder: (context, state) => const ReportsScreen()),
           GoRoute(path: '/audit', builder: (context, state) => const AuditScreen()),
+          GoRoute(path: '/users', builder: (context, state) => const UsersScreen()),
           GoRoute(path: '/categories', builder: (context, state) => const CategoryScreen()),
           GoRoute(path: '/brands', builder: (context, state) => const BrandScreen()),
           GoRoute(path: '/suppliers', builder: (context, state) => const SupplierScreen()),

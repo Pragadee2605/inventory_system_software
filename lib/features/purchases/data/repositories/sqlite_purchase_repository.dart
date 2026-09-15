@@ -79,6 +79,10 @@ class SqlitePurchaseRepository implements PurchaseRepository {
     required List<PurchaseItemDraft> items,
     required int userId,
   }) async {
+    if (items.isEmpty) {
+      throw Exception('Cannot create purchase order without items.');
+    }
+
     return await _db.transaction(() async {
       final orderNumber = 'PO-${DateTime.now().millisecondsSinceEpoch}';
       double total = items.fold(0, (sum, item) => sum + (item.quantity * item.unitPrice));
@@ -103,6 +107,15 @@ class SqlitePurchaseRepository implements PurchaseRepository {
           ),
         );
       }
+
+      await _db.into(_db.auditLogs).insert(
+        AuditLogsCompanion.insert(
+          userId: userId,
+          action: 'CREATE_PURCHASE',
+          details: Value('Created purchase order $orderNumber (Total: \$${total.toStringAsFixed(2)})'),
+        ),
+      );
+
       return orderId;
     });
   }
@@ -114,8 +127,14 @@ class SqlitePurchaseRepository implements PurchaseRepository {
         final itemId = entry.key;
         final newReceived = entry.value;
 
+        if (newReceived <= 0) continue;
+
         final item = await (_db.select(_db.purchaseItems)..where((t) => t.id.equals(itemId))).getSingle();
         final totalReceived = item.receivedQuantity + newReceived;
+
+        if (totalReceived > item.quantity) {
+          throw Exception('Received quantity ($totalReceived) cannot exceed ordered quantity (${item.quantity}).');
+        }
 
         await (_db.update(_db.purchaseItems)..where((t) => t.id.equals(itemId))).write(
           PurchaseItemsCompanion(receivedQuantity: Value(totalReceived)),
@@ -153,6 +172,14 @@ class SqlitePurchaseRepository implements PurchaseRepository {
           const PurchaseOrdersCompanion(status: Value('RECEIVED')),
         );
       }
+
+      await _db.into(_db.auditLogs).insert(
+        AuditLogsCompanion.insert(
+          userId: userId,
+          action: 'RECEIVE_PURCHASE',
+          details: Value('Received items for Purchase Order ID $orderId'),
+        ),
+      );
     });
   }
 }

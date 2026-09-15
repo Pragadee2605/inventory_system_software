@@ -33,28 +33,48 @@ class SqliteCategoryRepository implements CategoryRepository {
 
   @override
   Future<int> createCategory(String name, String? description) async {
+    final cleanName = name.trim();
+    if (cleanName.isEmpty) throw Exception('Category name is required.');
+
+    final existing = await (_db.select(_db.categories)..where((t) => t.name.equals(cleanName))).getSingleOrNull();
+    if (existing != null) {
+      throw Exception('Category "$cleanName" already exists.');
+    }
+
     return await _db.into(_db.categories).insert(
       CategoriesCompanion.insert(
-        name: name,
-        description: Value(description),
+        name: cleanName,
+        description: Value(description?.trim()),
       ),
     );
   }
 
   @override
   Future<void> updateCategory(int id, String name, String? description) async {
+    final cleanName = name.trim();
+    if (cleanName.isEmpty) throw Exception('Category name is required.');
+
     await (_db.update(_db.categories)..where((t) => t.id.equals(id))).write(
       CategoriesCompanion(
-        name: Value(name),
-        description: Value(description),
+        name: Value(cleanName),
+        description: Value(description?.trim()),
       ),
     );
   }
 
   @override
   Future<void> deleteCategory(int id) async {
-    // Note: In production, check for products first or use soft delete.
-    // For now, physical delete as requested if no transactions exist.
+    // Check if category is referenced by products
+    final countExp = _db.products.id.count();
+    final query = _db.selectOnly(_db.products)
+      ..addColumns([countExp])
+      ..where(_db.products.categoryId.equals(id));
+    
+    final count = await query.map((row) => row.read(countExp)).getSingle();
+    if ((count ?? 0) > 0) {
+      throw Exception('Cannot delete category: it is assigned to $count product(s). Please reassign or delete those products first.');
+    }
+
     await (_db.delete(_db.categories)..where((t) => t.id.equals(id))).go();
   }
 }
