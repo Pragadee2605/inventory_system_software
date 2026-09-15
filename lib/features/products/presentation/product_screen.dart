@@ -6,6 +6,7 @@ import 'package:inventory_system_software/features/categories/presentation/provi
 import 'package:inventory_system_software/features/brands/presentation/providers/brand_provider.dart';
 import 'package:inventory_system_software/core/widgets/permission_gate.dart';
 import 'package:logging/logging.dart';
+import 'package:inventory_system_software/core/services/barcode_scanner_service.dart';
 
 final _logger = Logger('ProductScreen');
 
@@ -148,9 +149,67 @@ class ProductScreen extends ConsumerWidget {
                           ),
                           const SizedBox(width: 16),
                           Expanded(
-                            child: TextFormField(
-                              controller: barcodeController,
-                              decoration: const InputDecoration(labelText: 'Barcode'),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: TextFormField(
+                                    controller: barcodeController,
+                                    decoration: const InputDecoration(labelText: 'Barcode'),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                IconButton(
+                                  tooltip: 'Scan Barcode',
+                                  icon: const Icon(Icons.camera_alt_outlined),
+                                  onPressed: () async {
+                                    // Open scanner and populate barcode field
+                                    final scanned = await BarcodeScannerService.scanBarcode(context);
+                                    if (scanned == null) return;
+
+                                    final existing = await ref.read(productRepositoryProvider).getProductByBarcode(scanned);
+                                    if (existing != null) {
+                                      // Show existing product details
+                                      showDialog(
+                                        context: context,
+                                        builder: (ctx) => AlertDialog(
+                                          title: const Text('Product already exists'),
+                                          content: Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text('Name: ${existing.name}'),
+                                              Text('SKU: ${existing.sku}'),
+                                              Text('Price: ₹${existing.sellingPrice}'),
+                                              Text('Current Stock: ${existing.currentStock}'),
+                                              Text('Category: ${existing.categoryName}'),
+                                              Text('Brand: ${existing.brandName ?? '-'}'),
+                                            ],
+                                          ),
+                                          actions: [
+                                            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Close')),
+                                            PermissionGate(
+                                              permission: 'PRODUCT_MANAGE',
+                                              child: TextButton(
+                                                onPressed: () {
+                                                  Navigator.pop(ctx);
+                                                  Navigator.pop(context); // close add/edit dialog
+                                                  // Open product editor for existing product
+                                                  _showProductDialog(context, ref, product: existing);
+                                                },
+                                                child: const Text('Open Product'),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      );
+                                    } else {
+                                      // Fill barcode for new product
+                                      barcodeController.text = scanned;
+                                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Scanned: $scanned')));
+                                    }
+                                  },
+                                ),
+                              ],
                             ),
                           ),
                         ],

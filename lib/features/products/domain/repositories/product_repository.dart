@@ -3,6 +3,7 @@ import 'package:inventory_system_software/features/products/domain/models/produc
 abstract class ProductRepository {
   Future<List<Product>> getAllProducts();
   Future<Product?> getProductById(int id);
+  Future<Product?> getProductByBarcode(String barcode);
   Future<int> createProduct({
     required String sku,
     String? barcode,

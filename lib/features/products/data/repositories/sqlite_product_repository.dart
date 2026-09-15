@@ -73,6 +73,38 @@ class SqliteProductRepository implements ProductRepository {
   }
 
   @override
+  Future<model.Product?> getProductByBarcode(String barcode) async {
+    final query = _db.select(_db.products).join([
+      innerJoin(_db.categories, _db.categories.id.equalsExp(_db.products.categoryId)),
+      leftOuterJoin(_db.brands, _db.brands.id.equalsExp(_db.products.brandId)),
+    ])..where(_db.products.barcode.equals(barcode));
+
+    final row = await query.getSingleOrNull();
+    if (row == null) return null;
+
+    final product = row.readTable(_db.products);
+    final category = row.readTable(_db.categories);
+    final brand = row.readTableOrNull(_db.brands);
+
+    return model.Product(
+      id: product.id,
+      sku: product.sku,
+      barcode: product.barcode,
+      name: product.name,
+      categoryId: product.categoryId,
+      categoryName: category.name,
+      brandId: product.brandId,
+      brandName: brand?.name,
+      purchasePrice: product.purchasePrice,
+      sellingPrice: product.sellingPrice,
+      currentStock: product.currentStock,
+      minStock: product.minStock,
+      createdAt: product.createdAt,
+      updatedAt: product.updatedAt,
+    );
+  }
+
+  @override
   Future<int> createProduct({
     required String sku,
     String? barcode,

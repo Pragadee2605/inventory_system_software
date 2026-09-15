@@ -119,15 +119,29 @@ class AppDatabase extends _$AppDatabase {
       });
     }
 
+    // Refresh permissions list from DB to ensure FK-safe inserts
+    final existingPermissionsNow = await select(permissions).get();
+    final existingPermissionCodes = existingPermissionsNow.map((p) => p.code).toSet();
+
     final existingRolePerms = await select(rolePermissions).get();
     if (existingRolePerms.isEmpty) {
       final rolePermsToInsert = <RolePermissionsCompanion>[];
+
+      // Helper: add only if permission code exists in DB
+      void tryAdd(int roleId, String code) {
+        if (existingPermissionCodes.contains(code)) {
+          rolePermsToInsert.add(RolePermissionsCompanion.insert(roleId: roleId, permissionCode: code));
+        } else {
+          // permission not present — skip to avoid FK failure
+          print('Warning: skipping role-permission insert, missing permission: $code');
+        }
+      }
 
       // ADMIN gets all permissions
       final adminRoleId = allRolesMap['ADMIN'];
       if (adminRoleId != null) {
         for (final p in permissionsList) {
-          rolePermsToInsert.add(RolePermissionsCompanion.insert(roleId: adminRoleId, permissionCode: p));
+          tryAdd(adminRoleId, p);
         }
       }
 
@@ -136,7 +150,7 @@ class AppDatabase extends _$AppDatabase {
       if (managerRoleId != null) {
         final managerPerms = permissionsList.where((p) => p != 'USER_MANAGE' && p != 'SETTINGS_MANAGE');
         for (final p in managerPerms) {
-          rolePermsToInsert.add(RolePermissionsCompanion.insert(roleId: managerRoleId, permissionCode: p));
+          tryAdd(managerRoleId, p);
         }
       }
 
@@ -156,7 +170,7 @@ class AppDatabase extends _$AppDatabase {
           'REPORT_VIEW',
         ];
         for (final p in staffPerms) {
-          rolePermsToInsert.add(RolePermissionsCompanion.insert(roleId: staffRoleId, permissionCode: p));
+          tryAdd(staffRoleId, p);
         }
       }
 
@@ -172,7 +186,7 @@ class AppDatabase extends _$AppDatabase {
           'REPORT_VIEW',
         ];
         for (final p in viewerPerms) {
-          rolePermsToInsert.add(RolePermissionsCompanion.insert(roleId: viewerRoleId, permissionCode: p));
+          tryAdd(viewerRoleId, p);
         }
       }
 

@@ -8,6 +8,9 @@ import 'package:inventory_system_software/features/sales/domain/repositories/sal
 import 'package:inventory_system_software/features/sales/domain/models/sales_order.dart';
 import 'package:inventory_system_software/features/customers/domain/models/customer.dart';
 import 'package:inventory_system_software/features/products/domain/models/product.dart';
+import 'package:inventory_system_software/core/services/barcode_scanner_service.dart';
+import 'package:inventory_system_software/features/products/presentation/product_screen.dart';
+import 'package:inventory_system_software/core/widgets/permission_gate.dart';
 
 class SalesScreen extends ConsumerWidget {
   const SalesScreen({super.key});
@@ -112,10 +115,69 @@ class SalesScreen extends ConsumerWidget {
                           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
                       ],
                     ),
-                    TextButton.icon(
-                      onPressed: () => _addItemToCart(context, ref, (item) => setState(() => cartItems.add(item))),
-                      icon: const Icon(Icons.add),
-                      label: const Text('Add Product to Cart'),
+                    Row(
+                      children: [
+                        TextButton.icon(
+                          onPressed: () => _addItemToCart(context, ref, (item) => setState(() => cartItems.add(item))),
+                          icon: const Icon(Icons.add),
+                          label: const Text('Add Product to Cart'),
+                        ),
+                        const SizedBox(width: 12),
+                        TextButton.icon(
+                          onPressed: () async {
+                            final scanned = await BarcodeScannerService.scanBarcode(context);
+                            if (scanned == null) return;
+
+                            final prod = await ref.read(productRepositoryProvider).getProductByBarcode(scanned);
+                            if (prod == null) {
+                              // Product not found
+                              showDialog(
+                                context: context,
+                                builder: (ctx) => AlertDialog(
+                                  title: const Text('Product Not Found'),
+                                  content: Text('Barcode:\n$scanned\n\nThis barcode is not registered in the inventory.'),
+                                  actions: [
+                                    TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+                                    PermissionGate(
+                                      permission: 'PRODUCT_MANAGE',
+                                      child: TextButton(
+                                        onPressed: () {
+                                          Navigator.pop(ctx);
+                                          Navigator.pop(context); // close sale dialog
+                                          Navigator.push(context, MaterialPageRoute(builder: (_) => ProductScreen()));
+                                        },
+                                        child: const Text('Create Product'),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                              return;
+                            }
+
+                            // Add to cart with quantity rules and stock validation
+                            final existingIndex = cartItems.indexWhere((c) => c.productId == prod.id);
+                            if (existingIndex >= 0) {
+                              final existing = cartItems[existingIndex];
+                              final newQty = existing.quantity + 1;
+                              if (newQty > prod.currentStock) {
+                                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Insufficient stock. Available: ${prod.currentStock}')));
+                                return;
+                              }
+                              setState(() => cartItems[existingIndex] = SalesItemDraft(productId: existing.productId, quantity: newQty, unitPrice: existing.unitPrice));
+                            } else {
+                              if (prod.currentStock <= 0) {
+                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Insufficient stock.')));
+                                return;
+                              }
+                              setState(() => cartItems.add(SalesItemDraft(productId: prod.id, quantity: 1, unitPrice: prod.sellingPrice)));
+                            }
+
+                          },
+                          icon: const Icon(Icons.camera_alt_outlined),
+                          label: const Text('Scan Product'),
+                        ),
+                      ],
                     ),
                   ],
                 ),

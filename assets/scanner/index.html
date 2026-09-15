@@ -1,0 +1,310 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Barcode Scanner</title>
+  <style>
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #000; color: #fff; overflow: hidden; }
+    .container { display:flex; flex-direction:column; height:100vh; width: 100vw; justify-content: center; align-items: center; position: relative; }
+    #video { width:100%; height:100%; object-fit:cover; background:#000; }
+
+    /* Premium Scan Box */
+    .scan-box {
+      position:absolute;
+      width:70%;
+      height:30%;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      box-shadow: 0 0 0 4000px rgba(0, 0, 0, 0.6);
+      border-radius: 16px;
+      z-index: 10;
+      overflow: hidden;
+    }
+
+    /* Corner indicators */
+    .corner { position: absolute; width: 24px; height: 24px; border: 4px solid #4f46e5; z-index: 21; }
+    .corner-tl { top: -2px; left: -2px; border-right: 0; border-bottom: 0; border-top-left-radius: 14px; }
+    .corner-tr { top: -2px; right: -2px; border-left: 0; border-bottom: 0; border-top-right-radius: 14px; }
+    .corner-bl { bottom: -2px; left: -2px; border-right: 0; border-top: 0; border-bottom-left-radius: 14px; }
+    .corner-br { bottom: -2px; right: -2px; border-left: 0; border-top: 0; border-bottom-right-radius: 14px; }
+
+    /* Animated Scanning Line */
+    .scan-line {
+      position: absolute;
+      width: 100%;
+      height: 3px;
+      background: linear-gradient(to right, transparent, #818cf8, transparent);
+      box-shadow: 0 0 15px #818cf8;
+      top: 0;
+      animation: scan 2s ease-in-out infinite;
+      z-index: 12;
+    }
+
+    @keyframes scan {
+      0% { top: 0; opacity: 0; }
+      10% { opacity: 1; }
+      90% { opacity: 1; }
+      100% { top: 100%; opacity: 0; }
+    }
+
+    .hint {
+      position: absolute;
+      bottom: 15%;
+      width: 100%;
+      text-align:center;
+      font-size: 14px;
+      font-weight: 500;
+      color: #f1f5f9;
+      text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+      z-index: 20;
+      letter-spacing: 0.5px;
+    }
+
+    /* Camera Toggle Button */
+    #switchBtn {
+      position: absolute;
+      top: 24px;
+      right: 24px;
+      width: 44px;
+      height: 44px;
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 50%;
+      color: white;
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 30;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    #switchBtn:active { background: rgba(255, 255, 255, 0.3); }
+    #switchBtn svg { width: 22px; height: 22px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <video id="video" autoplay muted playsinline></video>
+
+    <div id="switchBtn" onclick="cycleCamera()">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+    </div>
+
+    <div class="scan-box">
+      <div class="corner corner-tl"></div>
+      <div class="corner corner-tr"></div>
+      <div class="corner corner-bl"></div>
+      <div class="corner corner-br"></div>
+      <div class="scan-line"></div>
+    </div>
+    <div class="hint">Position barcode within the frame</div>
+  </div>
+
+<script>
+  const video = document.getElementById('video');
+  const switchBtn = document.getElementById('switchBtn');
+
+  let stream = null;
+  let stopped = false;
+  let audioCtx = null;
+  let codeReader = null;
+  let videoDevices = [];
+  let currentDeviceIndex = 0;
+
+  // Validation Logic to prevent "Mistake Codes"
+  let lastDetectedCode = "";
+  let detectionCount = 0;
+  const REQUIRED_CONSENSUS = 2; // Must see same code twice in a row
+
+  function playBeep() {
+    try {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = audioCtx.createOscillator();
+      const gainNode = audioCtx.createGain();
+
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(880, audioCtx.currentTime);
+      gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+
+      oscillator.start();
+      oscillator.stop(audioCtx.currentTime + 0.1);
+    } catch (e) {
+      console.warn('Beep failed', e);
+    }
+  }
+
+  function notifyFlutter(obj) {
+    const payload = typeof obj === 'string' ? obj : JSON.stringify(obj);
+    try {
+      if (window.BarcodeScanner && window.BarcodeScanner.postMessage) {
+        window.BarcodeScanner.postMessage(payload);
+      } else if (window.flutter_inappwebview && window.flutter_inappwebview.callHandler) {
+        window.flutter_inappwebview.callHandler('BarcodeScanner', payload);
+      }
+    } catch (e) {}
+  }
+
+  function addLog(msg) {
+    console.log('[ScannerJS]', msg);
+    notifyFlutter({ type: 'log', message: msg });
+  }
+
+  async function initCamera(deviceId = null) {
+    if (stream) {
+      stream.getTracks().forEach(t => t.stop());
+    }
+
+    addLog('Initializing camera...');
+    try {
+      // Optimized resolution for faster processing and less mistake data
+      const constraints = {
+        video: deviceId ?
+          { deviceId: { exact: deviceId }, width: { ideal: 1280 }, height: { ideal: 720 } } :
+          { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 720 } }
+      };
+
+      stream = await navigator.mediaDevices.getUserMedia(constraints);
+      video.srcObject = stream;
+
+      if (videoDevices.length === 0) {
+        await updateDeviceList();
+      }
+
+      video.onloadedmetadata = () => {
+        video.play().then(() => {
+          addLog('Camera active @ 720p');
+          startDetection();
+        });
+      };
+    } catch (e) {
+      addLog('Camera Error: ' + e.toString());
+      if (!deviceId) {
+          stream = await navigator.mediaDevices.getUserMedia({ video: true });
+          video.srcObject = stream;
+          video.play().then(() => startDetection());
+      }
+    }
+  }
+
+  async function updateDeviceList() {
+    try {
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      videoDevices = devices.filter(d => d.kind === 'videoinput');
+      addLog('Found ' + videoDevices.length + ' video devices');
+
+      if (videoDevices.length > 1) {
+        switchBtn.style.display = 'flex';
+      }
+    } catch (e) {
+      addLog('Enumerate failed: ' + e.toString());
+    }
+  }
+
+  async function cycleCamera() {
+    if (videoDevices.length < 2) return;
+    currentDeviceIndex = (currentDeviceIndex + 1) % videoDevices.length;
+    const newDeviceId = videoDevices[currentDeviceIndex].deviceId;
+    addLog('Switching to camera: ' + (videoDevices[currentDeviceIndex].label || currentDeviceIndex));
+
+    if (codeReader) codeReader.reset();
+    initCamera(newDeviceId);
+  }
+
+  async function startDetection() {
+    lastDetectedCode = "";
+    detectionCount = 0;
+
+    // 1. Native BarcodeDetector (Chrome/Edge/Desktop WebView2)
+    if ('BarcodeDetector' in window) {
+      addLog('Using BarcodeDetector with Consensus');
+      const detector = new BarcodeDetector({
+        formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e', 'code_128', 'code_39', 'qr_code', 'data_matrix', 'itf']
+      });
+
+      const scanLoop = async () => {
+        if (stopped) return;
+        try {
+          const barcodes = await detector.detect(video);
+          if (barcodes.length > 0) {
+            const rawVal = barcodes[0].rawValue || barcodes[0].rawText;
+            checkConsensus(rawVal);
+          } else {
+              // Reset consensus if nothing found for a frame to ensure we aren't sticking to a partial ghost
+              // actually don't reset immediately, just wait for next find
+          }
+        } catch (e) {}
+        requestAnimationFrame(scanLoop);
+      };
+      requestAnimationFrame(scanLoop);
+      return;
+    }
+
+    // 2. ZXing Fallback
+    addLog('Loading ZXing...');
+    const script = document.createElement('script');
+    script.src = 'worker-zxing.min.js';
+    script.onload = () => {
+      addLog('ZXing ready with Consensus');
+      try {
+        if (!codeReader) codeReader = new ZXing.BrowserMultiFormatReader();
+
+        codeReader.decodeContinuously(video, (result, error) => {
+          if (stopped) return;
+          if (result) {
+            checkConsensus(result.text);
+          }
+        });
+      } catch (e) {
+        addLog('ZXing init failed: ' + e.toString());
+      }
+    };
+    document.body.appendChild(script);
+  }
+
+  function checkConsensus(val) {
+    if (val === lastDetectedCode) {
+        detectionCount++;
+    } else {
+        lastDetectedCode = val;
+        detectionCount = 1;
+    }
+
+    if (detectionCount >= REQUIRED_CONSENSUS) {
+        onResult(val);
+    }
+  }
+
+  function onResult(val) {
+    if (stopped) return;
+    stopped = true;
+    addLog('Verified Success: ' + val);
+    playBeep();
+    notifyFlutter({ type: 'result', value: val });
+
+    setTimeout(() => {
+      stopCamera();
+    }, 200);
+  }
+
+  function stopCamera() {
+    stopped = true;
+    if (codeReader) codeReader.reset();
+    if (stream) {
+      stream.getTracks().forEach(t => t.stop());
+      stream = null;
+    }
+  }
+
+  window.addEventListener('beforeunload', stopCamera);
+  setTimeout(initCamera, 200);
+</script>
+</body>
+</html>

@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:inventory_system_software/features/auth/domain/models/auth_user.dart';
-import 'package:inventory_system_software/features/auth/presentation/providers/auth_provider.dart';
 
 final authorizationServiceProvider = Provider<AuthorizationService>((ref) {
   return AuthorizationService();
