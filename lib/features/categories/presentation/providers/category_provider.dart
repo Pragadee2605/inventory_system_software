@@ -1,19 +1,19 @@
+import 'dart:async';
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:inventory_system_software/core/database/database.dart' hide Category;
 import 'package:inventory_system_software/features/categories/data/repositories/sqlite_category_repository.dart';
 import 'package:inventory_system_software/features/categories/domain/models/category.dart';
 import 'package:inventory_system_software/features/categories/domain/repositories/category_repository.dart';
-import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-part 'category_provider.g.dart';
-
-@riverpod
-CategoryRepository categoryRepository(Ref ref) {
+final categoryRepositoryProvider = Provider<CategoryRepository>((ref) {
   final db = ref.watch(databaseProvider);
   return SqliteCategoryRepository(db);
-}
+});
 
-@riverpod
-class CategoryList extends _$CategoryList {
+final categoryListProvider = AsyncNotifierProvider<CategoryList, List<Category>>(CategoryList.new);
+
+class CategoryList extends AsyncNotifier<List<Category>> {
   @override
   FutureOr<List<Category>> build() async {
     return ref.watch(categoryRepositoryProvider).getAllCategories();

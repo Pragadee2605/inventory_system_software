@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:inventory_system_software/features/auth/presentation/providers/auth_provider.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -28,6 +29,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               _usernameController.text,
               _passwordController.text,
             );
+
+        if (mounted && ref.read(authStateProvider).value != null) {
+          context.go('/');
+        }
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

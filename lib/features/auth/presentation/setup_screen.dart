@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:inventory_system_software/features/auth/presentation/providers/auth_provider.dart';
 
 class SetupScreen extends ConsumerStatefulWidget {
@@ -31,6 +32,10 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
               password: _passwordController.text,
               fullName: _fullNameController.text,
             );
+
+        if (mounted && ref.read(authStateProvider).value != null) {
+          context.go('/');
+        }
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

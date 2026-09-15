@@ -1,21 +1,21 @@
+import 'dart:async';
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:inventory_system_software/core/database/database.dart' hide PurchaseOrder, PurchaseItem;
 import 'package:inventory_system_software/features/auth/presentation/providers/auth_provider.dart';
 import 'package:inventory_system_software/features/purchases/data/repositories/sqlite_purchase_repository.dart';
 import 'package:inventory_system_software/features/purchases/domain/models/purchase_order.dart';
 import 'package:inventory_system_software/features/purchases/domain/repositories/purchase_repository.dart';
 import 'package:inventory_system_software/features/products/presentation/providers/product_provider.dart';
-import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-part 'purchase_provider.g.dart';
-
-@riverpod
-PurchaseRepository purchaseRepository(Ref ref) {
+final purchaseRepositoryProvider = Provider<PurchaseRepository>((ref) {
   final db = ref.watch(databaseProvider);
   return SqlitePurchaseRepository(db);
-}
+});
 
-@riverpod
-class PurchaseList extends _$PurchaseList {
+final purchaseListProvider = AsyncNotifierProvider<PurchaseList, List<PurchaseOrder>>(PurchaseList.new);
+
+class PurchaseList extends AsyncNotifier<List<PurchaseOrder>> {
   @override
   FutureOr<List<PurchaseOrder>> build() async {
     return ref.watch(purchaseRepositoryProvider).getAllPurchases();
@@ -52,7 +52,6 @@ class PurchaseList extends _$PurchaseList {
   }
 }
 
-@riverpod
-Future<PurchaseOrder?> purchaseDetails(Ref ref, int id) {
+final purchaseDetailsProvider = FutureProvider.family<PurchaseOrder?, int>((ref, id) {
   return ref.watch(purchaseRepositoryProvider).getPurchaseById(id);
-}
+});

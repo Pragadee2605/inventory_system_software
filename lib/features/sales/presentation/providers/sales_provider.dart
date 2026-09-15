@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:inventory_system_software/core/database/database.dart' hide SalesOrder, SalesItem;
 import 'package:inventory_system_software/features/auth/presentation/providers/auth_provider.dart';
 import 'package:inventory_system_software/features/sales/data/repositories/sqlite_sales_repository.dart';
@@ -5,18 +8,15 @@ import 'package:inventory_system_software/features/sales/domain/models/sales_ord
 import 'package:inventory_system_software/features/sales/domain/repositories/sales_repository.dart';
 import 'package:inventory_system_software/features/products/presentation/providers/product_provider.dart';
 import 'package:inventory_system_software/features/inventory/presentation/providers/inventory_provider.dart';
-import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-part 'sales_provider.g.dart';
-
-@riverpod
-SalesRepository salesRepository(Ref ref) {
+final salesRepositoryProvider = Provider<SalesRepository>((ref) {
   final db = ref.watch(databaseProvider);
   return SqliteSalesRepository(db);
-}
+});
 
-@riverpod
-class SalesList extends _$SalesList {
+final salesListProvider = AsyncNotifierProvider<SalesList, List<SalesOrder>>(SalesList.new);
+
+class SalesList extends AsyncNotifier<List<SalesOrder>> {
   @override
   FutureOr<List<SalesOrder>> build() async {
     return ref.watch(salesRepositoryProvider).getAllSales();

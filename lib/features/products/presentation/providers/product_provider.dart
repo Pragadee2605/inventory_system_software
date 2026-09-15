@@ -1,19 +1,19 @@
+import 'dart:async';
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:inventory_system_software/core/database/database.dart' hide Product;
 import 'package:inventory_system_software/features/products/data/repositories/sqlite_product_repository.dart';
 import 'package:inventory_system_software/features/products/domain/models/product.dart';
 import 'package:inventory_system_software/features/products/domain/repositories/product_repository.dart';
-import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-part 'product_provider.g.dart';
-
-@riverpod
-ProductRepository productRepository(Ref ref) {
+final productRepositoryProvider = Provider<ProductRepository>((ref) {
   final db = ref.watch(databaseProvider);
   return SqliteProductRepository(db);
-}
+});
 
-@riverpod
-class ProductList extends _$ProductList {
+final productListProvider = AsyncNotifierProvider<ProductList, List<Product>>(ProductList.new);
+
+class ProductList extends AsyncNotifier<List<Product>> {
   @override
   FutureOr<List<Product>> build() async {
     return ref.watch(productRepositoryProvider).getAllProducts();

@@ -1,19 +1,19 @@
+import 'dart:async';
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:inventory_system_software/core/database/database.dart' hide Customer;
 import 'package:inventory_system_software/features/customers/data/repositories/sqlite_customer_repository.dart';
 import 'package:inventory_system_software/features/customers/domain/models/customer.dart';
 import 'package:inventory_system_software/features/customers/domain/repositories/customer_repository.dart';
-import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-part 'customer_provider.g.dart';
-
-@riverpod
-CustomerRepository customerRepository(Ref ref) {
+final customerRepositoryProvider = Provider<CustomerRepository>((ref) {
   final db = ref.watch(databaseProvider);
   return SqliteCustomerRepository(db);
-}
+});
 
-@riverpod
-class CustomerList extends _$CustomerList {
+final customerListProvider = AsyncNotifierProvider<CustomerList, List<Customer>>(CustomerList.new);
+
+class CustomerList extends AsyncNotifier<List<Customer>> {
   @override
   FutureOr<List<Customer>> build() async {
     return ref.watch(customerRepositoryProvider).getAllCustomers();

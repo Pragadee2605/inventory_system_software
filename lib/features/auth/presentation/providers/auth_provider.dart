@@ -1,20 +1,20 @@
+import 'dart:async';
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:inventory_system_software/core/database/database.dart';
 import 'package:inventory_system_software/features/auth/data/repositories/sqlite_auth_repository.dart';
 import 'package:inventory_system_software/features/auth/data/services/password_service.dart';
 import 'package:inventory_system_software/features/auth/domain/models/auth_user.dart';
 import 'package:inventory_system_software/features/auth/domain/repositories/auth_repository.dart';
-import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-part 'auth_provider.g.dart';
-
-@riverpod
-AuthRepository authRepository(Ref ref) {
+final authRepositoryProvider = Provider<AuthRepository>((ref) {
   final db = ref.watch(databaseProvider);
   return SqliteAuthRepository(db, PasswordService());
-}
+});
 
-@riverpod
-class AuthState extends _$AuthState {
+final authStateProvider = AsyncNotifierProvider<AuthState, AuthUser?>(AuthState.new);
+
+class AuthState extends AsyncNotifier<AuthUser?> {
   @override
   FutureOr<AuthUser?> build() async {
     final repo = ref.watch(authRepositoryProvider);
@@ -50,13 +50,12 @@ class AuthState extends _$AuthState {
         password: password,
         fullName: fullName,
       );
-      // Automatically login after setup
+      ref.invalidate(hasUsersProvider);
       return await repo.login(username, password);
     });
   }
 }
 
-@riverpod
-Future<bool> hasUsers(Ref ref) {
+final hasUsersProvider = FutureProvider<bool>((ref) {
   return ref.watch(authRepositoryProvider).hasUsers();
-}
+});

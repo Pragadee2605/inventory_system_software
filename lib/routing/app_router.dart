@@ -1,5 +1,6 @@
+import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:inventory_system_software/features/dashboard/presentation/dashboard_screen.dart';
 import 'package:inventory_system_software/features/settings/presentation/settings_screen.dart';
 import 'package:inventory_system_software/features/categories/presentation/category_screen.dart';
@@ -21,23 +22,32 @@ import 'package:inventory_system_software/features/auth/presentation/setup_scree
 import 'package:inventory_system_software/features/auth/presentation/providers/auth_provider.dart';
 import 'package:inventory_system_software/core/widgets/main_layout.dart';
 
-part 'app_router.g.dart';
+class RouterNotifier extends ChangeNotifier {
+  final Ref _ref;
 
-@riverpod
-GoRouter router(Ref ref) {
-  final authState = ref.watch(authStateProvider);
-  final hasUsersAsync = ref.watch(hasUsersProvider);
+  RouterNotifier(this._ref) {
+    _ref.listen(authStateProvider, (_, __) => notifyListeners());
+    _ref.listen(hasUsersProvider, (_, __) => notifyListeners());
+  }
+}
+
+final routerProvider = Provider<GoRouter>((ref) {
+  final notifier = RouterNotifier(ref);
 
   return GoRouter(
     initialLocation: '/',
+    refreshListenable: notifier,
     redirect: (context, state) {
-      if (hasUsersAsync.isLoading) return null;
-      
-      final hasUsers = hasUsersAsync.value ?? false;
-      final isLoggedIn = authState.value != null;
+      final hasUsersAsync = ref.read(hasUsersProvider);
+      if (hasUsersAsync.isLoading || hasUsersAsync.hasError) return null;
 
-      final isGoingToSetup = state.uri.path == '/setup';
-      final isGoingToLogin = state.uri.path == '/login';
+      final hasUsers = hasUsersAsync.value ?? false;
+      final authState = ref.read(authStateProvider);
+      if (authState.isLoading || authState.hasError) return null;
+
+      final isLoggedIn = authState.value != null;
+      final isGoingToSetup = state.matchedLocation == '/setup';
+      final isGoingToLogin = state.matchedLocation == '/login';
 
       if (!hasUsers) {
         if (!isGoingToSetup) return '/setup';
@@ -45,7 +55,7 @@ GoRouter router(Ref ref) {
       }
 
       if (!isLoggedIn) {
-        if (!isGoingToLogin && !isGoingToSetup) return '/login';
+        if (!isGoingToLogin) return '/login';
         return null;
       }
 
@@ -54,85 +64,29 @@ GoRouter router(Ref ref) {
       return null;
     },
     routes: [
-      GoRoute(
-        path: '/setup',
-        builder: (context, state) => const SetupScreen(),
-      ),
-      GoRoute(
-        path: '/login',
-        builder: (context, state) => const LoginScreen(),
-      ),
+      GoRoute(path: '/setup', builder: (context, state) => const SetupScreen()),
+      GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
       ShellRoute(
-        builder: (context, state, child) {
-          return MainLayout(child: child);
-        },
+        builder: (context, state, child) => MainLayout(child: child),
         routes: [
-          GoRoute(
-            path: '/',
-            builder: (context, state) => const DashboardScreen(),
-          ),
-          GoRoute(
-            path: '/products',
-            builder: (context, state) => const ProductScreen(),
-          ),
-          GoRoute(
-            path: '/inventory',
-            builder: (context, state) => const InventoryScreen(),
-          ),
-          GoRoute(
-            path: '/locations',
-            builder: (context, state) => const LocationsScreen(),
-          ),
-          GoRoute(
-            path: '/transfers',
-            builder: (context, state) => const TransfersScreen(),
-          ),
-          GoRoute(
-            path: '/expiry',
-            builder: (context, state) => const ExpiryReportScreen(),
-          ),
-          GoRoute(
-            path: '/purchases',
-            builder: (context, state) => const PurchaseScreen(),
-          ),
-          GoRoute(
-            path: '/sales',
-            builder: (context, state) => const SalesScreen(),
-          ),
-          GoRoute(
-            path: '/returns',
-            builder: (context, state) => const ReturnsScreen(),
-          ),
-          GoRoute(
-            path: '/reports',
-            builder: (context, state) => const ReportsScreen(),
-          ),
-          GoRoute(
-            path: '/audit',
-            builder: (context, state) => const AuditScreen(),
-          ),
-          GoRoute(
-            path: '/categories',
-            builder: (context, state) => const CategoryScreen(),
-          ),
-          GoRoute(
-            path: '/brands',
-            builder: (context, state) => const BrandScreen(),
-          ),
-          GoRoute(
-            path: '/suppliers',
-            builder: (context, state) => const SupplierScreen(),
-          ),
-          GoRoute(
-            path: '/customers',
-            builder: (context, state) => const CustomerScreen(),
-          ),
-          GoRoute(
-            path: '/settings',
-            builder: (context, state) => const SettingsScreen(),
-          ),
+          GoRoute(path: '/', builder: (context, state) => const DashboardScreen()),
+          GoRoute(path: '/products', builder: (context, state) => const ProductScreen()),
+          GoRoute(path: '/inventory', builder: (context, state) => const InventoryScreen()),
+          GoRoute(path: '/locations', builder: (context, state) => const LocationsScreen()),
+          GoRoute(path: '/transfers', builder: (context, state) => const TransfersScreen()),
+          GoRoute(path: '/expiry', builder: (context, state) => const ExpiryReportScreen()),
+          GoRoute(path: '/purchases', builder: (context, state) => const PurchaseScreen()),
+          GoRoute(path: '/sales', builder: (context, state) => const SalesScreen()),
+          GoRoute(path: '/returns', builder: (context, state) => const ReturnsScreen()),
+          GoRoute(path: '/reports', builder: (context, state) => const ReportsScreen()),
+          GoRoute(path: '/audit', builder: (context, state) => const AuditScreen()),
+          GoRoute(path: '/categories', builder: (context, state) => const CategoryScreen()),
+          GoRoute(path: '/brands', builder: (context, state) => const BrandScreen()),
+          GoRoute(path: '/suppliers', builder: (context, state) => const SupplierScreen()),
+          GoRoute(path: '/customers', builder: (context, state) => const CustomerScreen()),
+          GoRoute(path: '/settings', builder: (context, state) => const SettingsScreen()),
         ],
       ),
     ],
   );
-}
+});

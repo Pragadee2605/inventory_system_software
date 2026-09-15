@@ -1,19 +1,19 @@
+import 'dart:async';
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:inventory_system_software/core/database/database.dart' hide Brand;
 import 'package:inventory_system_software/features/brands/data/repositories/sqlite_brand_repository.dart';
 import 'package:inventory_system_software/features/brands/domain/models/brand.dart';
 import 'package:inventory_system_software/features/brands/domain/repositories/brand_repository.dart';
-import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-part 'brand_provider.g.dart';
-
-@riverpod
-BrandRepository brandRepository(Ref ref) {
+final brandRepositoryProvider = Provider<BrandRepository>((ref) {
   final db = ref.watch(databaseProvider);
   return SqliteBrandRepository(db);
-}
+});
 
-@riverpod
-class BrandList extends _$BrandList {
+final brandListProvider = AsyncNotifierProvider<BrandList, List<Brand>>(BrandList.new);
+
+class BrandList extends AsyncNotifier<List<Brand>> {
   @override
   FutureOr<List<Brand>> build() async {
     return ref.watch(brandRepositoryProvider).getAllBrands();

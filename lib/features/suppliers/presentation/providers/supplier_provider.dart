@@ -1,19 +1,19 @@
+import 'dart:async';
+
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:inventory_system_software/core/database/database.dart' hide Supplier;
 import 'package:inventory_system_software/features/suppliers/data/repositories/sqlite_supplier_repository.dart';
 import 'package:inventory_system_software/features/suppliers/domain/models/supplier.dart';
 import 'package:inventory_system_software/features/suppliers/domain/repositories/supplier_repository.dart';
-import 'package:riverpod_annotation/riverpod_annotation.dart';
 
-part 'supplier_provider.g.dart';
-
-@riverpod
-SupplierRepository supplierRepository(Ref ref) {
+final supplierRepositoryProvider = Provider<SupplierRepository>((ref) {
   final db = ref.watch(databaseProvider);
   return SqliteSupplierRepository(db);
-}
+});
 
-@riverpod
-class SupplierList extends _$SupplierList {
+final supplierListProvider = AsyncNotifierProvider<SupplierList, List<Supplier>>(SupplierList.new);
+
+class SupplierList extends AsyncNotifier<List<Supplier>> {
   @override
   FutureOr<List<Supplier>> build() async {
     return ref.watch(supplierRepositoryProvider).getAllSuppliers();
