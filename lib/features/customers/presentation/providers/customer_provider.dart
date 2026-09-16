@@ -19,16 +19,18 @@ class CustomerList extends AsyncNotifier<List<Customer>> {
     return ref.watch(customerRepositoryProvider).getAllCustomers();
   }
 
-  Future<void> addCustomer({required String name, String? email, String? phone}) async {
+  Future<int?> addCustomer({required String name, String? email, String? phone}) async {
+    int? newId;
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
-      await ref.read(customerRepositoryProvider).createCustomer(
+      newId = await ref.read(customerRepositoryProvider).createCustomer(
         name: name,
         email: email,
         phone: phone,
       );
       return ref.read(customerRepositoryProvider).getAllCustomers();
     });
+    return newId;
   }
 
   Future<void> updateCustomer({required int id, required String name, String? email, String? phone}) async {

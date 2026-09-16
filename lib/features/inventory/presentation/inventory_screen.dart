@@ -4,7 +4,6 @@ import 'package:intl/intl.dart';
 import 'package:inventory_system_software/features/inventory/domain/models/stock_transaction.dart';
 import 'package:inventory_system_software/features/inventory/presentation/providers/inventory_provider.dart';
 import 'package:inventory_system_software/features/products/presentation/providers/product_provider.dart';
-import 'package:inventory_system_software/features/products/domain/models/product.dart';
 
 class InventoryScreen extends ConsumerWidget {
   const InventoryScreen({super.key});
@@ -99,78 +98,88 @@ class InventoryScreen extends ConsumerWidget {
 
     showDialog(
       context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-            final List<Product> products = ref.watch(productListProvider).value ?? [];
+      builder: (context) => Consumer(
+        builder: (context, ref, child) {
+          final productsAsync = ref.watch(productListProvider);
 
-            return AlertDialog(
-              title: Text(type == StockTransactionType.stockIn
-                  ? 'Add Stock (In)'
-                  : type == StockTransactionType.stockOut
-                      ? 'Remove Stock (Out)'
-                      : 'Stock Adjustment'),
-              content: Form(
-                key: formKey,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    DropdownButtonFormField<int>(
-                      initialValue: selectedProductId,
-                      decoration: const InputDecoration(labelText: 'Select Product *'),
-                      items: products
-                          .map((p) => DropdownMenuItem(value: p.id, child: Text('${p.name} (${p.sku})')))
-                          .toList(),
-                      onChanged: (v) => setState(() => selectedProductId = v),
-                      validator: (v) => v == null ? 'Required' : null,
+          return productsAsync.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (err, _) => AlertDialog(
+              title: const Text('Error'),
+              content: Text('Failed to load products: $err'),
+              actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close'))],
+            ),
+            data: (products) => StatefulBuilder(
+              builder: (context, setState) {
+                return AlertDialog(
+                  title: Text(type == StockTransactionType.stockIn
+                      ? 'Add Stock (In)'
+                      : type == StockTransactionType.stockOut
+                          ? 'Remove Stock (Out)'
+                          : 'Stock Adjustment'),
+                  content: Form(
+                    key: formKey,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        DropdownButtonFormField<int>(
+                          initialValue: selectedProductId,
+                          decoration: const InputDecoration(labelText: 'Select Product *'),
+                          items: products
+                              .map((p) => DropdownMenuItem(value: p.id, child: Text('${p.name} (${p.sku})')))
+                              .toList(),
+                          onChanged: (v) => setState(() => selectedProductId = v),
+                          validator: (v) => v == null ? 'Required' : null,
+                        ),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: quantityController,
+                          decoration: InputDecoration(
+                            labelText: type == StockTransactionType.adjustment ? 'Quantity (+/-)' : 'Quantity',
+                            helperText: type == StockTransactionType.adjustment ? 'Use negative for deduction' : null,
+                          ),
+                          keyboardType: TextInputType.number,
+                          validator: (v) {
+                            if (v == null || v.isEmpty) return 'Required';
+                            if (int.tryParse(v) == null) return 'Invalid number';
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                          controller: reasonController,
+                          decoration: const InputDecoration(labelText: 'Reason / Reference'),
+                          maxLines: 2,
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: quantityController,
-                      decoration: InputDecoration(
-                        labelText: type == StockTransactionType.adjustment ? 'Quantity (+/-)' : 'Quantity',
-                        helperText: type == StockTransactionType.adjustment ? 'Use negative for deduction' : null,
-                      ),
-                      keyboardType: TextInputType.number,
-                      validator: (v) {
-                        if (v == null || v.isEmpty) return 'Required';
-                        if (int.tryParse(v) == null) return 'Invalid number';
-                        return null;
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Cancel'),
+                    ),
+                    ElevatedButton(
+                      onPressed: () {
+                        if (formKey.currentState!.validate()) {
+                          ref.read(stockTransactionListProvider.notifier).addTransaction(
+                                productId: selectedProductId!,
+                                type: type,
+                                quantity: int.parse(quantityController.text),
+                                reason: reasonController.text,
+                              );
+                          Navigator.pop(context);
+                        }
                       },
-                    ),
-                    const SizedBox(height: 16),
-                    TextFormField(
-                      controller: reasonController,
-                      decoration: const InputDecoration(labelText: 'Reason / Reference'),
-                      maxLines: 2,
+                      child: const Text('Submit'),
                     ),
                   ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Cancel'),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    if (formKey.currentState!.validate()) {
-                      ref.read(stockTransactionListProvider.notifier).addTransaction(
-                            productId: selectedProductId!,
-                            type: type,
-                            quantity: int.parse(quantityController.text),
-                            reason: reasonController.text,
-                          );
-                      Navigator.pop(context);
-                    }
-                  },
-                  child: const Text('Submit'),
-                ),
-              ],
-            );
-          },
-        );
-      },
+                );
+              },
+            ),
+          );
+        },
+      ),
     );
   }
 }

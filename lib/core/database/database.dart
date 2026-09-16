@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:inventory_system_software/features/auth/data/services/password_service.dart';
 
@@ -21,7 +22,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(db_impl.openConnection());
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration {
@@ -34,7 +35,27 @@ class AppDatabase extends _$AppDatabase {
         await _seedDefaultRolesAndPermissions();
         await _seedDefaultMasterData();
       },
+      onUpgrade: (m, from, to) async {
+        if (from < 3) {
+          // Robust migration to add missing columns if they don't exist.
+          // We use a helper to check column existence to prevent "duplicate column" errors.
+          await _addColumnIfNotExists('sales_orders', 'tax_amount', 'REAL NOT NULL DEFAULT 0.0');
+          await _addColumnIfNotExists('sales_orders', 'discount_amount', 'REAL NOT NULL DEFAULT 0.0');
+          await _addColumnIfNotExists('sales_orders', 'profit_amount', 'REAL NOT NULL DEFAULT 0.0');
+          await _addColumnIfNotExists('sales_orders', 'status', 'TEXT NOT NULL DEFAULT "COMPLETED"');
+          await _addColumnIfNotExists('sales_items', 'purchase_price', 'REAL NOT NULL DEFAULT 0.0');
+        }
+      },
     );
+  }
+
+  Future<void> _addColumnIfNotExists(String table, String column, String type) async {
+    final result = await customSelect('PRAGMA table_info($table)').get();
+    final columnExists = result.any((row) => row.read<String>('name') == column);
+    
+    if (!columnExists) {
+      await customStatement('ALTER TABLE $table ADD COLUMN $column $type');
+    }
   }
 
   Future<void> ensureDefaultAdmin() async {
@@ -66,7 +87,9 @@ class AppDatabase extends _$AppDatabase {
         status: const Value(UserStatus.active),
       ),
     );
-    print('Default admin created: Pragadees / Pragadees');
+    if (kDebugMode) {
+      print('Default admin created: Pragadees / Pragadees');
+    }
   }
 
   Future<void> _seedDefaultRolesAndPermissions() async {
@@ -133,7 +156,9 @@ class AppDatabase extends _$AppDatabase {
           rolePermsToInsert.add(RolePermissionsCompanion.insert(roleId: roleId, permissionCode: code));
         } else {
           // permission not present — skip to avoid FK failure
-          print('Warning: skipping role-permission insert, missing permission: $code');
+          if (kDebugMode) {
+            print('Warning: skipping role-permission insert, missing permission: $code');
+          }
         }
       }
 
@@ -388,6 +413,10 @@ class SalesOrders extends Table {
   IntColumn get customerId => integer().nullable().references(Customers, #id)();
   DateTimeColumn get saleDate => dateTime().withDefault(currentDateAndTime)();
   RealColumn get totalAmount => real()();
+  RealColumn get taxAmount => real().withDefault(const Constant(0.0))();
+  RealColumn get discountAmount => real().withDefault(const Constant(0.0))();
+  RealColumn get profitAmount => real().withDefault(const Constant(0.0))();
+  TextColumn get status => text().withDefault(const Constant('COMPLETED'))(); // COMPLETED, HOLD, CANCELLED
   IntColumn get createdBy => integer().references(Users, #id)();
 }
 
@@ -397,6 +426,7 @@ class SalesItems extends Table {
   IntColumn get productId => integer().references(Products, #id)();
   IntColumn get quantity => integer()();
   RealColumn get unitPrice => real()();
+  RealColumn get purchasePrice => real().withDefault(const Constant(0.0))(); // Cost price at time of sale
   RealColumn get subtotal => real()();
 }
 

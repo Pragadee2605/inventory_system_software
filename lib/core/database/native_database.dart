@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:drift/drift.dart';
 import 'package:drift/native.dart';
+import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
 
@@ -9,7 +10,9 @@ DatabaseConnection openConnection() {
     final dbFolder = await getApplicationSupportDirectory();
     await dbFolder.create(recursive: true);
     final file = File(p.join(dbFolder.path, 'inventory.sqlite'));
-    print('SQLite DB path: ${file.path}');
+    if (kDebugMode) {
+      print('SQLite DB path: ${file.path}');
+    }
     final executor = NativeDatabase.createInBackground(file);
     return DatabaseConnection(executor);
   }));

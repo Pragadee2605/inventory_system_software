@@ -6,7 +6,6 @@ import 'package:inventory_system_software/features/suppliers/presentation/provid
 import 'package:inventory_system_software/features/products/presentation/providers/product_provider.dart';
 import 'package:inventory_system_software/features/purchases/domain/repositories/purchase_repository.dart';
 import 'package:inventory_system_software/features/purchases/domain/models/purchase_order.dart';
-import 'package:inventory_system_software/features/suppliers/domain/models/supplier.dart';
 import 'package:inventory_system_software/features/products/domain/models/product.dart';
 
 class PurchaseScreen extends ConsumerWidget {
@@ -86,64 +85,87 @@ class PurchaseScreen extends ConsumerWidget {
 
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) {
-          final List<Supplier> suppliers = ref.watch(supplierListProvider).value ?? [];
-          final List<Product> products = ref.watch(productListProvider).value ?? [];
+      barrierDismissible: false,
+      builder: (context) => Consumer(
+        builder: (context, ref, child) {
+          final suppliersAsync = ref.watch(supplierListProvider);
+          final productsAsync = ref.watch(productListProvider);
 
-          return AlertDialog(
-            title: const Text('New Purchase Order'),
-            content: SizedBox(
-              width: 600,
-              child: Form(
-                key: formKey,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    DropdownButtonFormField<int>(
-                      initialValue: selectedSupplierId,
-                      decoration: const InputDecoration(labelText: 'Supplier'),
-                      items: suppliers.map((s) => DropdownMenuItem(value: s.id, child: Text(s.name))).toList(),
-                      onChanged: (v) => setState(() => selectedSupplierId = v),
-                      validator: (v) => v == null ? 'Required' : null,
-                    ),
-                    const Divider(height: 32),
-                    const Text('Order Items', style: TextStyle(fontWeight: FontWeight.bold)),
-                    ...draftItems.asMap().entries.map((entry) {
-                      final idx = entry.key;
-                      final item = entry.value;
-                      final prod = products.firstWhere((p) => p.id == item.productId);
-                      return ListTile(
-                        title: Text(prod.name),
-                        subtitle: Text('Qty: ${item.quantity} | Price: ₹${item.unitPrice}'),
-                        trailing: IconButton(
-                          icon: const Icon(Icons.delete, color: Colors.red),
-                          onPressed: () => setState(() => draftItems.removeAt(idx)),
+          return suppliersAsync.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (err, _) => AlertDialog(
+              title: const Text('Error'),
+              content: Text('Failed to load suppliers: $err'),
+              actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close'))],
+            ),
+            data: (suppliers) => productsAsync.when(
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (err, _) => AlertDialog(
+                title: const Text('Error'),
+                content: Text('Failed to load products: $err'),
+                actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close'))],
+              ),
+              data: (products) => StatefulBuilder(
+                builder: (context, setState) {
+                  return AlertDialog(
+                    title: const Text('New Purchase Order'),
+                    content: SizedBox(
+                      width: 600,
+                      child: Form(
+                        key: formKey,
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            DropdownButtonFormField<int>(
+                              initialValue: selectedSupplierId,
+                              decoration: const InputDecoration(labelText: 'Supplier'),
+                              items: suppliers.map((s) => DropdownMenuItem(value: s.id, child: Text(s.name))).toList(),
+                              onChanged: (v) => setState(() => selectedSupplierId = v),
+                              validator: (v) => v == null ? 'Required' : null,
+                            ),
+                            const Divider(height: 32),
+                            const Text('Order Items', style: TextStyle(fontWeight: FontWeight.bold)),
+                            ...draftItems.asMap().entries.map((entry) {
+                              final idx = entry.key;
+                              final item = entry.value;
+                              final prod = products.firstWhere((p) => p.id == item.productId);
+                              return ListTile(
+                                title: Text(prod.name),
+                                subtitle: Text('Qty: ${item.quantity} | Price: ₹${item.unitPrice}'),
+                                trailing: IconButton(
+                                  icon: const Icon(Icons.delete, color: Colors.red),
+                                  onPressed: () => setState(() => draftItems.removeAt(idx)),
+                                ),
+                              );
+                            }),
+                            TextButton.icon(
+                              onPressed: () => _addItemToDraft(context, ref, (item) => setState(() => draftItems.add(item))),
+                              icon: const Icon(Icons.add_shopping_cart),
+                              label: const Text('Add Item'),
+                            ),
+                          ],
                         ),
-                      );
-                    }),
-                    TextButton.icon(
-                      onPressed: () => _addItemToDraft(context, ref, (item) => setState(() => draftItems.add(item))),
-                      icon: const Icon(Icons.add_shopping_cart),
-                      label: const Text('Add Item'),
+                      ),
                     ),
-                  ],
-                ),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+                      ElevatedButton(
+                        onPressed: draftItems.isEmpty || selectedSupplierId == null
+                            ? null
+                            : () {
+                                ref.read(purchaseListProvider.notifier).createPurchase(
+                                      supplierId: selectedSupplierId!,
+                                      items: draftItems,
+                                    );
+                                Navigator.pop(context);
+                              },
+                        child: const Text('Create Order'),
+                      ),
+                    ],
+                  );
+                },
               ),
             ),
-            actions: [
-              TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-              ElevatedButton(
-                onPressed: draftItems.isEmpty || selectedSupplierId == null ? null : () {
-                  ref.read(purchaseListProvider.notifier).createPurchase(
-                    supplierId: selectedSupplierId!,
-                    items: draftItems,
-                  );
-                  Navigator.pop(context);
-                },
-                child: const Text('Create Order'),
-              ),
-            ],
           );
         },
       ),

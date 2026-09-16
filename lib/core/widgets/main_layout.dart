@@ -14,6 +14,10 @@ class MainLayout extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final isCollapsed = ref.watch(sidebarCollapsedProvider);
+    final screenWidth = MediaQuery.of(context).size.width;
+    
+    // Auto-collapse sidebar on smaller screens
+    final effectiveCollapsed = isCollapsed || screenWidth < 1200;
 
     return Scaffold(
       body: Row(
@@ -21,8 +25,8 @@ class MainLayout extends ConsumerWidget {
           AnimatedContainer(
             duration: const Duration(milliseconds: 200),
             curve: Curves.easeInOut,
-            width: isCollapsed ? 72 : 260,
-            child: const Sidebar(),
+            width: effectiveCollapsed ? 72 : 260,
+            child: Sidebar(isCollapsed: effectiveCollapsed),
           ),
           const VerticalDivider(thickness: 1, width: 1),
           Expanded(
@@ -45,12 +49,12 @@ class MainLayout extends ConsumerWidget {
 }
 
 class Sidebar extends ConsumerWidget {
-  const Sidebar({super.key});
+  final bool isCollapsed;
+  const Sidebar({super.key, required this.isCollapsed});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final location = GoRouterState.of(context).uri.path;
-    final isCollapsed = ref.watch(sidebarCollapsedProvider);
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final user = ref.watch(authStateProvider).value;

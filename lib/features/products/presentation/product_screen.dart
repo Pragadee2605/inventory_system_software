@@ -109,206 +109,228 @@ class ProductScreen extends ConsumerWidget {
 
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setState) {
-          final categories = ref.watch(categoryListProvider).value ?? [];
-          final brands = ref.watch(brandListProvider).value ?? [];
+        return Consumer(
+          builder: (context, ref, child) {
+            final categoriesAsync = ref.watch(categoryListProvider);
+            final brandsAsync = ref.watch(brandListProvider);
 
-          final canSave = categories.isNotEmpty;
-          _logger.info('Loaded categories=${categories.length}, brands=${brands.length} for product form');
-
-          return AlertDialog(
-            title: Text(product == null ? 'Add Product' : 'Edit Product'),
-            content: Form(
-              key: formKey,
-              child: SingleChildScrollView(
-                child: SizedBox(
-                  width: 500,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (categories.isEmpty)
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          margin: const EdgeInsets.only(bottom: 12),
-                          decoration: BoxDecoration(
-                            color: Colors.orange.withValues(alpha: 0.08),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Text('No categories found. Add a category before creating products.'),
-                        ),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextFormField(
-                              controller: skuController,
-                              decoration: const InputDecoration(labelText: 'SKU *'),
-                              validator: (v) => v == null || v.isEmpty ? 'Required' : null,
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Row(
+            return categoriesAsync.when(
+              loading: () => const AlertDialog(
+                content: SizedBox(
+                  height: 100,
+                  child: Center(child: CircularProgressIndicator()),
+                ),
+              ),
+              error: (err, _) => AlertDialog(
+                title: const Text('Error'),
+                content: Text('Failed to load form data: $err'),
+                actions: [
+                  TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
+                ],
+              ),
+              data: (categories) {
+                final brands = brandsAsync.value ?? [];
+                
+                return StatefulBuilder(
+                  builder: (context, setState) {
+                    final canSave = categories.isNotEmpty;
+                    
+                    return AlertDialog(
+                      title: Text(product == null ? 'Add Product' : 'Edit Product'),
+                      content: Form(
+                        key: formKey,
+                        child: SingleChildScrollView(
+                          child: SizedBox(
+                            width: 500,
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
                               children: [
-                                Expanded(
-                                  child: TextFormField(
-                                    controller: barcodeController,
-                                    decoration: const InputDecoration(labelText: 'Barcode'),
+                                if (categories.isEmpty)
+                                  Container(
+                                    padding: const EdgeInsets.all(12),
+                                    margin: const EdgeInsets.only(bottom: 12),
+                                    decoration: BoxDecoration(
+                                      color: Colors.orange.withValues(alpha: 0.08),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: const Text('No categories found. Add a category before creating products.'),
                                   ),
-                                ),
-                                const SizedBox(width: 8),
-                                IconButton(
-                                  tooltip: 'Scan Barcode',
-                                  icon: const Icon(Icons.camera_alt_outlined),
-                                  onPressed: () async {
-                                    // Open scanner and populate barcode field
-                                    final scanned = await BarcodeScannerService.scanBarcode(context);
-                                    if (scanned == null) return;
-
-                                    final existing = await ref.read(productRepositoryProvider).getProductByBarcode(scanned);
-                                    if (existing != null) {
-                                      // Show existing product details
-                                      showDialog(
-                                        context: context,
-                                        builder: (ctx) => AlertDialog(
-                                          title: const Text('Product already exists'),
-                                          content: Column(
-                                            mainAxisSize: MainAxisSize.min,
-                                            crossAxisAlignment: CrossAxisAlignment.start,
-                                            children: [
-                                              Text('Name: ${existing.name}'),
-                                              Text('SKU: ${existing.sku}'),
-                                              Text('Price: ₹${existing.sellingPrice}'),
-                                              Text('Current Stock: ${existing.currentStock}'),
-                                              Text('Category: ${existing.categoryName}'),
-                                              Text('Brand: ${existing.brandName ?? '-'}'),
-                                            ],
-                                          ),
-                                          actions: [
-                                            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Close')),
-                                            PermissionGate(
-                                              permission: 'PRODUCT_MANAGE',
-                                              child: TextButton(
-                                                onPressed: () {
-                                                  Navigator.pop(ctx);
-                                                  Navigator.pop(context); // close add/edit dialog
-                                                  // Open product editor for existing product
-                                                  _showProductDialog(context, ref, product: existing);
-                                                },
-                                                child: const Text('Open Product'),
-                                              ),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: TextFormField(
+                                        controller: skuController,
+                                        decoration: const InputDecoration(labelText: 'SKU *'),
+                                        validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    Expanded(
+                                      child: Row(
+                                        children: [
+                                          Expanded(
+                                            child: TextFormField(
+                                              controller: barcodeController,
+                                              decoration: const InputDecoration(labelText: 'Barcode'),
                                             ),
-                                          ],
-                                        ),
-                                      );
-                                    } else {
-                                      // Fill barcode for new product
-                                      barcodeController.text = scanned;
-                                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Scanned: $scanned')));
-                                    }
-                                  },
+                                          ),
+                                          const SizedBox(width: 8),
+                                          IconButton(
+                                            tooltip: 'Scan Barcode',
+                                            icon: const Icon(Icons.camera_alt_outlined),
+                                            onPressed: () async {
+                                              final scanned = await BarcodeScannerService.scanBarcode(context);
+                                              if (scanned == null) return;
+
+                                              final existing = await ref.read(productRepositoryProvider).getProductByBarcode(scanned);
+                                              if (existing != null) {
+                                                if (context.mounted) {
+                                                  showDialog(
+                                                    context: context,
+                                                    builder: (ctx) => AlertDialog(
+                                                      title: const Text('Product already exists'),
+                                                      content: Column(
+                                                        mainAxisSize: MainAxisSize.min,
+                                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                                        children: [
+                                                          Text('Name: ${existing.name}'),
+                                                          Text('SKU: ${existing.sku}'),
+                                                          Text('Price: ₹${existing.sellingPrice}'),
+                                                          Text('Current Stock: ${existing.currentStock}'),
+                                                          Text('Category: ${existing.categoryName}'),
+                                                          Text('Brand: ${existing.brandName ?? '-'}'),
+                                                        ],
+                                                      ),
+                                                      actions: [
+                                                        TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Close')),
+                                                        PermissionGate(
+                                                          permission: 'PRODUCT_MANAGE',
+                                                          child: TextButton(
+                                                            onPressed: () {
+                                                              Navigator.pop(ctx);
+                                                              Navigator.pop(context);
+                                                              _showProductDialog(context, ref, product: existing);
+                                                            },
+                                                            child: const Text('Open Product'),
+                                                          ),
+                                                        ),
+                                                      ],
+                                                    ),
+                                                  );
+                                                }
+                                              } else {
+                                                barcodeController.text = scanned;
+                                                if (context.mounted) {
+                                                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Scanned: $scanned')));
+                                                }
+                                              }
+                                            },
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                TextFormField(
+                                  controller: nameController,
+                                  decoration: const InputDecoration(labelText: 'Product Name *'),
+                                  validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+                                ),
+                                const SizedBox(height: 16),
+                                DropdownButtonFormField<int>(
+                                  value: categories.any((c) => c.id == selectedCategoryId) ? selectedCategoryId : null,
+                                  decoration: const InputDecoration(labelText: 'Category *'),
+                                  items: categories.isEmpty
+                                      ? const []
+                                      : categories.map((c) => DropdownMenuItem(value: c.id, child: Text(c.name))).toList(),
+                                  onChanged: canSave ? (v) => setState(() => selectedCategoryId = v) : null,
+                                  validator: (v) => v == null ? 'Required' : null,
+                                ),
+                                const SizedBox(height: 12),
+                                DropdownButtonFormField<int>(
+                                  value: brands.any((b) => b.id == selectedBrandId) ? selectedBrandId : null,
+                                  decoration: const InputDecoration(labelText: 'Brand'),
+                                  items: brands.map((b) => DropdownMenuItem(value: b.id, child: Text(b.name))).toList(),
+                                  onChanged: (v) => setState(() => selectedBrandId = v),
+                                ),
+                                const SizedBox(height: 16),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: TextFormField(
+                                        controller: purchasePriceController,
+                                        decoration: const InputDecoration(labelText: 'Purchase Price'),
+                                        keyboardType: TextInputType.number,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    Expanded(
+                                      child: TextFormField(
+                                        controller: sellingPriceController,
+                                        decoration: const InputDecoration(labelText: 'Selling Price'),
+                                        keyboardType: TextInputType.number,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                TextFormField(
+                                  controller: minStockController,
+                                  decoration: const InputDecoration(labelText: 'Minimum Stock Level'),
+                                  keyboardType: TextInputType.number,
                                 ),
                               ],
                             ),
                           ),
-                        ],
                         ),
-                      TextFormField(
-                        controller: nameController,
-                        decoration: const InputDecoration(labelText: 'Product Name *'),
-                        validator: (v) => v == null || v.isEmpty ? 'Required' : null,
                       ),
-                      const SizedBox(height: 16),
-                      DropdownButtonFormField<int>(
-                        value: categories.any((c) => c.id == selectedCategoryId) ? selectedCategoryId : null,
-                        decoration: const InputDecoration(labelText: 'Category *'),
-                        items: categories.isEmpty
-                            ? const []
-                            : categories.map((c) => DropdownMenuItem(value: c.id, child: Text(c.name))).toList(),
-                        onChanged: canSave ? (v) => setState(() => selectedCategoryId = v) : null,
-                        validator: (v) => v == null ? 'Required' : null,
-                      ),
-                      const SizedBox(height: 12),
-                      DropdownButtonFormField<int>(
-                        value: brands.any((b) => b.id == selectedBrandId) ? selectedBrandId : null,
-                        decoration: const InputDecoration(labelText: 'Brand'),
-                        items: brands.map((b) => DropdownMenuItem(value: b.id, child: Text(b.name))).toList(),
-                        onChanged: (v) => setState(() => selectedBrandId = v),
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextFormField(
-                              controller: purchasePriceController,
-                              decoration: const InputDecoration(labelText: 'Purchase Price'),
-                              keyboardType: TextInputType.number,
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: TextFormField(
-                              controller: sellingPriceController,
-                              decoration: const InputDecoration(labelText: 'Selling Price'),
-                              keyboardType: TextInputType.number,
-                            ),
-                          ),
-                        ],
-                      ),
-                      TextFormField(
-                        controller: minStockController,
-                        decoration: const InputDecoration(labelText: 'Minimum Stock Level'),
-                        keyboardType: TextInputType.number,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel'),
-              ),
-              ElevatedButton(
-                onPressed: canSave
-                    ? () {
-                        if (formKey.currentState!.validate()) {
-                          _logger.info('Saving product: sku=${skuController.text}, categoryId=$selectedCategoryId');
-                          if (product == null) {
-                            ref.read(productListProvider.notifier).addProduct(
-                                  sku: skuController.text,
-                                  barcode: barcodeController.text,
-                                  name: nameController.text,
-                                  categoryId: selectedCategoryId!,
-                                  brandId: selectedBrandId,
-                                  purchasePrice: double.tryParse(purchasePriceController.text) ?? 0.0,
-                                  sellingPrice: double.tryParse(sellingPriceController.text) ?? 0.0,
-                                  minStock: int.tryParse(minStockController.text) ?? 5,
-                                );
-                          } else {
-                            ref.read(productListProvider.notifier).updateProduct(
-                                  id: product.id,
-                                  sku: skuController.text,
-                                  barcode: barcodeController.text,
-                                  name: nameController.text,
-                                  categoryId: selectedCategoryId!,
-                                  brandId: selectedBrandId,
-                                  purchasePrice: double.tryParse(purchasePriceController.text) ?? 0.0,
-                                  sellingPrice: double.tryParse(sellingPriceController.text) ?? 0.0,
-                                  minStock: int.tryParse(minStockController.text) ?? 5,
-                                );
-                          }
-                          Navigator.pop(context);
-                        }
-                      }
-                    : null,
-                child: const Text('Save'),
-              ),
-            ],
-          );
-        },
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text('Cancel'),
+                        ),
+                        ElevatedButton(
+                          onPressed: canSave
+                              ? () {
+                                  if (formKey.currentState!.validate()) {
+                                    if (product == null) {
+                                      ref.read(productListProvider.notifier).addProduct(
+                                            sku: skuController.text,
+                                            barcode: barcodeController.text,
+                                            name: nameController.text,
+                                            categoryId: selectedCategoryId!,
+                                            brandId: selectedBrandId,
+                                            purchasePrice: double.tryParse(purchasePriceController.text) ?? 0.0,
+                                            sellingPrice: double.tryParse(sellingPriceController.text) ?? 0.0,
+                                            minStock: int.tryParse(minStockController.text) ?? 5,
+                                          );
+                                    } else {
+                                      ref.read(productListProvider.notifier).updateProduct(
+                                            id: product.id,
+                                            sku: skuController.text,
+                                            barcode: barcodeController.text,
+                                            name: nameController.text,
+                                            categoryId: selectedCategoryId!,
+                                            brandId: selectedBrandId,
+                                            purchasePrice: double.tryParse(purchasePriceController.text) ?? 0.0,
+                                            sellingPrice: double.tryParse(sellingPriceController.text) ?? 0.0,
+                                            minStock: int.tryParse(minStockController.text) ?? 5,
+                                          );
+                                    }
+                                    Navigator.pop(context);
+                                  }
+                                }
+                              : null,
+                          child: const Text('Save'),
+                        ),
+                      ],
+                    );
+                  },
+                );
+              },
+            );
+          },
         );
       },
     );

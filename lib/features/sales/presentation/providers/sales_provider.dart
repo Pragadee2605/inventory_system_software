@@ -19,26 +19,59 @@ final salesListProvider = AsyncNotifierProvider<SalesList, List<SalesOrder>>(Sal
 class SalesList extends AsyncNotifier<List<SalesOrder>> {
   @override
   FutureOr<List<SalesOrder>> build() async {
-    return ref.watch(salesRepositoryProvider).getAllSales();
+    return ref.watch(salesRepositoryProvider).getAllSales(status: 'COMPLETED');
   }
 
-  Future<void> createSale({
+  Future<int?> createSale({
     int? customerId,
     required List<SalesItemDraft> items,
+    double taxAmount = 0.0,
+    double discountAmount = 0.0,
+    String status = 'COMPLETED',
   }) async {
     final user = ref.read(authStateProvider).value;
-    if (user == null) return;
+    if (user == null) return null;
 
+    int? orderId;
     state = const AsyncLoading();
     state = await AsyncValue.guard(() async {
-      await ref.read(salesRepositoryProvider).createSale(
+      orderId = await ref.read(salesRepositoryProvider).createSale(
         customerId: customerId,
         items: items,
         userId: user.id,
+        taxAmount: taxAmount,
+        discountAmount: discountAmount,
+        status: status,
       );
+      
+      if (status == 'COMPLETED') {
+        ref.invalidate(productListProvider);
+        ref.invalidate(stockTransactionListProvider);
+      }
+      
+      ref.invalidate(heldSalesProvider);
+      return ref.read(salesRepositoryProvider).getAllSales(status: 'COMPLETED');
+    });
+    return orderId;
+  }
+
+  Future<void> completeHeldSale(int id) async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(() async {
+      await ref.read(salesRepositoryProvider).updateSaleStatus(id, 'COMPLETED');
       ref.invalidate(productListProvider);
       ref.invalidate(stockTransactionListProvider);
-      return ref.read(salesRepositoryProvider).getAllSales();
+      ref.invalidate(heldSalesProvider);
+      return ref.read(salesRepositoryProvider).getAllSales(status: 'COMPLETED');
     });
   }
 }
+
+final heldSalesProvider = FutureProvider<List<SalesOrder>>((ref) {
+  return ref.watch(salesRepositoryProvider).getAllSales(status: 'HOLD');
+});
+
+final salesTotalProfitProvider = FutureProvider<double>((ref) async {
+  final sales = await ref.watch(salesRepositoryProvider).getAllSales(status: 'COMPLETED');
+  return sales.fold<double>(0.0, (double sum, s) => sum + s.profitAmount);
+});
